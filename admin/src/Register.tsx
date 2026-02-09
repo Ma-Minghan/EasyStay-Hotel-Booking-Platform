@@ -1,22 +1,22 @@
+import { Form, Input, Button, Card, Typography, Radio } from 'antd';
 import { Link } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography } from 'antd';
 import './App.css';
 
 const { Title } = Typography;
 
-function App() {
+function Register() {
   const [form] = Form.useForm();
 
   const onFinish = (values: any) => {
-    console.log('Login values:', values);
-    // TODO: 之后这里接后端登录接口
+    console.log('Register values:', values);
+    // TODO: 之后这里接后端注册接口
   };
 
   return (
     <div className="login-page">
       <Card className="login-card">
         <Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-          易宿酒店后台管理登录
+          易宿酒店后台注册
         </Title>
         <Form
           form={form}
@@ -39,14 +39,26 @@ function App() {
             <Input.Password placeholder="请输入密码" />
           </Form.Item>
 
+          <Form.Item
+            label="角色"
+            name="role"
+            initialValue="merchant"
+            rules={[{ required: true, message: '请选择角色' }]}
+          >
+            <Radio.Group>
+              <Radio value="merchant">商户</Radio>
+              <Radio value="admin">管理员</Radio>
+            </Radio.Group>
+          </Form.Item>
+
           <Form.Item>
             <Button type="primary" htmlType="submit" block>
-              登录
+              注册
             </Button>
           </Form.Item>
 
           <div style={{ textAlign: 'right' }}>
-            还没有账号？<Link to="/register">去注册</Link>
+            已有账号？<Link to="/login">去登录</Link>
           </div>
         </Form>
       </Card>
@@ -54,4 +66,4 @@ function App() {
   );
 }
 
-export default App;
+export default Register;
