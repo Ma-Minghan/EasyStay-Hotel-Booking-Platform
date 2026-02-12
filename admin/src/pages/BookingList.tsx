@@ -47,6 +47,12 @@ function BookingList() {
           label: '预订管理',
           onClick: () => navigate('/bookings'),
         },
+             {
+        key: 'statistics',
+        icon: <ShopOutlined />,
+        label: '收入统计',
+        onClick: () => navigate('/statistics'),
+      },
       ]
     : [
         {
@@ -60,6 +66,12 @@ function BookingList() {
           icon: <ShopOutlined />,
           label: '预订查询',
           onClick: () => navigate('/bookings'),
+        },
+        {
+          key: 'statistics',
+          icon: <ShopOutlined />,
+          label: '收入统计',
+          onClick: () => navigate('/statistics'),
         },
       ];
 

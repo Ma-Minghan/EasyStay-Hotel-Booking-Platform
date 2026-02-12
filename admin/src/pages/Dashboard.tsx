@@ -17,34 +17,47 @@ function Dashboard() {
   };
 
   const menuItems = user.role === 'admin'
-    ? [
-        {
-          key: 'review',
-          icon: <ShopOutlined />,
-          label: '酒店审核',
-          onClick: () => navigate('/hotels'),
-        },
-        {
-          key: 'bookings',
-          icon: <ShopOutlined />,
-          label: '预订管理',
-          onClick: () => navigate('/bookings'),
-        },
-      ]
-    : [
-        {
-          key: 'hotels',
-          icon: <ShopOutlined />,
-          label: '我的酒店',
-          onClick: () => navigate('/hotels'),
-        },
-        {
-          key: 'bookings',
-          icon: <ShopOutlined />,
-          label: '预订查询',
-          onClick: () => navigate('/bookings'),
-        },
-      ];
+  ? [
+      {
+        key: 'review',
+        icon: <ShopOutlined />,
+        label: '酒店审核',
+        onClick: () => navigate('/hotels'),
+      },
+      {
+        key: 'bookings',
+        icon: <ShopOutlined />,
+        label: '预订管理',
+        onClick: () => navigate('/bookings'),
+      },
+      {
+        key: 'statistics',
+        icon: <ShopOutlined />,
+        label: '收入统计',
+        onClick: () => navigate('/statistics'),
+      },
+    ]
+  : [
+      {
+        key: 'hotels',
+        icon: <ShopOutlined />,
+        label: '我的酒店',
+        onClick: () => navigate('/hotels'),
+      },
+      {
+        key: 'bookings',
+        icon: <ShopOutlined />,
+        label: '预订查询',
+        onClick: () => navigate('/bookings'),
+      },
+      {
+        key: 'statistics',
+        icon: <ShopOutlined />,
+        label: '收入统计',
+        onClick: () => navigate('/statistics'),
+      },
+    ];
+
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

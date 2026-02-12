@@ -37,6 +37,12 @@ function HotelList() {
         label: '预订管理',
         onClick: () => navigate('/bookings'),
       },
+        {
+        key: 'statistics',
+        icon: <ShopOutlined />,
+        label: '收入统计',
+        onClick: () => navigate('/statistics'),
+      },
     ]
   : [
       {
@@ -50,6 +56,12 @@ function HotelList() {
         icon: <ShopOutlined />,
         label: '预订查询',
         onClick: () => navigate('/bookings'),
+      },
+           {
+        key: 'statistics',
+        icon: <ShopOutlined />,
+        label: '收入统计',
+        onClick: () => navigate('/statistics'),
       },
     ];
 
