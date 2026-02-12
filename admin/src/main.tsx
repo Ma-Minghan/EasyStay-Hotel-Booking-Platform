@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import App from './App';
 import Register from './Register';
+import Dashboard from './pages/Dashboard';
+import HotelList from './pages/HotelList';
+import HotelForm from './pages/HotelForm';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -11,6 +14,10 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <Routes>
         <Route path="/login" element={<App />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/hotels" element={<HotelList />} />
+        <Route path="/hotels/new" element={<HotelForm />} />
+        <Route path="/hotels/:id" element={<HotelForm />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

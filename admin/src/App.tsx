@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import axios from 'axios';
 import './App.css';
@@ -9,6 +9,7 @@ const { Title } = Typography;
 function App() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const onFinish = async (values: any) => {
     try {
@@ -20,8 +21,11 @@ function App() {
 
       if (response.data.code === 200) {
         message.success('登录成功！');
-        console.log('登录信息:', response.data.data);
-        // TODO: 后面这里会跳转到首页、保存 token 等
+        // 保存 token 和 user 到 localStorage
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+        // 跳转到 dashboard
+        navigate('/dashboard');
       } else {
         message.error(response.data.message);
       }
