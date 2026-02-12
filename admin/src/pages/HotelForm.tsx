@@ -30,28 +30,35 @@ function HotelForm() {
     }
   };
 
-  const onFinish = async (values: any) => {
-    try {
-      setLoading(true);
+const onFinish = async (values: any) => {
+  try {
+    setLoading(true);
 
-      if (id && id !== 'new') {
-        await axios.put(`http://localhost:3000/api/hotels/${id}`, values);
-        message.success('更新成功');
-      } else {
-        await axios.post('http://localhost:3000/api/hotels', {
-          ...values,
-          merchantId: user.id,
-        });
-        message.success('新增成功');
-      }
-
-      navigate('/hotels');
-    } catch (error) {
-      message.error('保存失败');
-    } finally {
-      setLoading(false);
+    if (id && id !== 'new') {
+      // 编辑模式
+      await axios.put(`http://localhost:3000/api/hotels/${id}`, values, {
+        params: {
+          role: user.role,
+          userId: user.id,
+        },
+      });
+      message.success('更新成功');
+    } else {
+      // 新增模式
+      await axios.post('http://localhost:3000/api/hotels', {
+        ...values,
+        merchantId: user.id,
+      });
+      message.success('新增成功');
     }
-  };
+
+    navigate('/hotels');
+  } catch (error: any) {
+    message.error(error.response?.data?.message || '保存失败');
+  } finally {
+    setLoading(false);
+  }
+};
 
 return (
   <Layout style={{ minHeight: '100vh' }}>
