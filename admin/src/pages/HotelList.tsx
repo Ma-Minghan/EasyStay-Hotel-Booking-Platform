@@ -10,12 +10,12 @@
  * - 管理员可以看到所有酒店，且有审核按钮
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout, Button, Table, Space, message, Popconfirm, Tag, Menu } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShopOutlined } from '@ant-design/icons';
-import axios from 'axios';
 import { Spin } from 'antd';
+import { useApi } from '../hooks/useApi';
 
 const { Header, Sider, Content } = Layout;
 
@@ -33,8 +33,9 @@ function HotelList() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const api = useApi({ showMessage: false });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
 
  const menuItems = user.role === 'admin'
   ? [
@@ -82,9 +83,9 @@ function HotelList() {
 
   useEffect(() => {
     fetchHotels();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
- const fetchHotels = async () => {
+ const fetchHotels = useCallback(async () => {
   try {
     setLoading(true);
     
@@ -99,7 +100,7 @@ function HotelList() {
       params.merchantId = user.id;
     }
     
-    const response = await axios.get('http://localhost:3000/api/hotels', {
+    const response = await api.get('http://localhost:3000/api/hotels', {
       params,
     });
 
@@ -114,13 +115,13 @@ function HotelList() {
   } finally {
     setLoading(false);
   }
-};
+}, [api, user.role, user.id]);
 
 
 
- const handleDelete = async (id: string) => {
+ const handleDelete = useCallback(async (id: string) => {
   try {
-    await axios.delete(`http://localhost:3000/api/hotels/${id}`, {
+    await api.delete(`http://localhost:3000/api/hotels/${id}`, {
       params: {
         role: user.role,
         userId: user.id,
@@ -131,7 +132,7 @@ function HotelList() {
   } catch (error: any) {
     message.error(error.response?.data?.message || '删除失败');
   }
-};
+}, [api, user.role, user.id, fetchHotels]);
 
   const columns = [
     {
@@ -215,9 +216,9 @@ function HotelList() {
 }
 
   ];
-const handleApprove = async (id: string, newStatus: string) => {
+const handleApprove = useCallback(async (id: string, newStatus: string) => {
   try {
-    await axios.put(
+    await api.put(
       `http://localhost:3000/api/hotels/${id}`,
       { status: newStatus },
       {
@@ -232,7 +233,7 @@ const handleApprove = async (id: string, newStatus: string) => {
   } catch (error: any) {
     message.error(error.response?.data?.message || '审核失败');
   }
-};
+}, [api, user.role, user.id, fetchHotels]);
 
  return (
   <Layout style={{ minHeight: '100vh' }}>

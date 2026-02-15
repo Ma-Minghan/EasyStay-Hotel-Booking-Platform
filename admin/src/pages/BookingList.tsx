@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout, Button, Table, Space, message, Tag, Menu, Select, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ShopOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import { useApi } from '../hooks/useApi';
 
 const { Header, Sider, Content } = Layout;
 
@@ -30,8 +30,9 @@ function BookingList() {
   const [loading, setLoading] = useState(false);
   const [selectedHotelId, setSelectedHotelId] = useState<string | undefined>();
   const navigate = useNavigate();
+  const api = useApi({ showMessage: false });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
 
   const menuItems = user.role === 'admin'
     ? [
@@ -78,9 +79,9 @@ function BookingList() {
   useEffect(() => {
     fetchHotels();
     fetchBookings();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchHotels = async () => {
+  const fetchHotels = useCallback(async () => {
     try {
       const params: any = {
         role: user.role,
@@ -91,7 +92,7 @@ function BookingList() {
         params.merchantId = user.id;
       }
 
-      const response = await axios.get('http://localhost:3000/api/hotels', {
+      const response = await api.get('http://localhost:3000/api/hotels', {
         params,
       });
 
@@ -104,12 +105,12 @@ function BookingList() {
       message.error('获取酒店列表失败');
       console.error('Error:', error);
     }
-  };
+  }, [api, user.role, user.id]);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/bookings', {
+      const response = await api.get('http://localhost:3000/api/bookings', {
         params: {
           role: user.role,
           userId: user.id,
@@ -128,17 +129,17 @@ function BookingList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, user.role, user.id, selectedHotelId]);
 
   useEffect(() => {
     if (user.role === 'merchant' || selectedHotelId) {
       fetchBookings();
     }
-  }, [selectedHotelId]);
+  }, [selectedHotelId, fetchBookings, user.role]);
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     try {
-      const response = await axios.put(
+      const response = await api.put(
         `http://localhost:3000/api/bookings/${bookingId}`,
         { status: newStatus }
       );
