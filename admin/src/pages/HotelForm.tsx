@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Layout, Form, Input, Button, Card, message } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import { useApi } from '../hooks/useApi';
+import { API_ENDPOINTS } from '../config';
 
 const { Header, Content } = Layout;
 
 function HotelForm() {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams();
+  const api = useApi({ showMessage: false });
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -20,62 +21,38 @@ function HotelForm() {
   }, [id]);
 
   const fetchHotelDetail = async () => {
-    try {
-      const response = await axios.get(`http://localhost:3000/api/hotels/${id}`);
-      if (response.data.code === 200) {
-        form.setFieldsValue(response.data.data);
-      } else {
-        message.error(response.data.message || '获取酒店信息失败');
-      }
-    } catch (error: any) {
+    const data = await api.get(API_ENDPOINTS.hotels.detail(id!));
+    if (data) {
+      form.setFieldsValue(data);
+    } else {
       message.error('获取酒店信息失败');
-      console.error('Error:', error);
     }
   };
 
   const onFinish = async (values: any) => {
-    try {
-      setLoading(true);
+    let result;
 
-      if (id && id !== 'new') {
-        // 编辑模式
-        const response = await axios.put(
-          `http://localhost:3000/api/hotels/${id}`,
-          values,
-          {
-            params: {
-              role: user.role,
-              userId: user.id,
-            },
-          }
-        );
-
-        if (response.data.code === 200) {
-          message.success('酒店信息已更新');
-          setTimeout(() => navigate('/hotels'), 500);
-        } else {
-          message.error(response.data.message || '更新失败');
+    if (id && id !== 'new') {
+      // 编辑模式
+      result = await api.put(
+        API_ENDPOINTS.hotels.update(id),
+        values,
+        {
+          role: user.role,
+          userId: user.id,
         }
-      } else {
-        // 新增模式
-        const response = await axios.post('http://localhost:3000/api/hotels', {
-          ...values,
-          merchantId: user.id,
-        });
+      );
+    } else {
+      // 新增模式
+      result = await api.post(API_ENDPOINTS.hotels.create, {
+        ...values,
+        merchantId: user.id,
+      });
+    }
 
-        if (response.data.code === 200) {
-          message.success('酒店已成功创建');
-          setTimeout(() => navigate('/hotels'), 500);
-        } else {
-          message.error(response.data.message || '创建失败');
-        }
-      }
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.message || error.message || '操作失败';
-      message.error(errorMsg);
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
+    if (result) {
+      message.success(id && id !== 'new' ? '酒店信息已更新' : '酒店已成功创建');
+      setTimeout(() => navigate('/hotels'), 500);
     }
   };
 
@@ -182,7 +159,7 @@ function HotelForm() {
             </Form.Item>
 
             <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading}>
+              <Button type="primary" htmlType="submit" loading={api.loading}>
                 {id && id !== 'new' ? '更新' : '创建'}
               </Button>
               <Button style={{ marginLeft: '10px' }} onClick={() => navigate('/hotels')}>

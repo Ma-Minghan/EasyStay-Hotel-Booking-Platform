@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Layout, Menu, Button, Card, Row, Col, Statistic, Table, message, Spin } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { ShopOutlined, DollarOutlined, ShoppingCartOutlined, TeamOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import { useApi } from '../hooks/useApi';
 
 const { Header, Sider, Content } = Layout;
 
@@ -24,8 +24,9 @@ function Statistics() {
   const [statistics, setStatistics] = useState<StatisticsData | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const api = useApi({ showMessage: false });
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
 
   const menuItems = user.role === 'admin'
     ? [
@@ -71,12 +72,12 @@ function Statistics() {
 
   useEffect(() => {
     fetchStatistics();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3000/api/statistics/revenue', {
+      const response = await api.get('http://localhost:3000/api/statistics/revenue', {
         params: {
           role: user.role,
           userId: user.id,
@@ -94,7 +95,7 @@ function Statistics() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, user.role, user.id]);
 
   const columns = [
     {
