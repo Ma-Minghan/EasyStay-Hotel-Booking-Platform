@@ -16,6 +16,7 @@ export interface RegisterParams {
   username: string
   password: string
   phone?: string
+  verifyCode?: string
 }
 
 // 用户信息
@@ -57,7 +58,18 @@ export const register = async (params: RegisterParams) => {
   })
 }
 
+/**
+ * 发送验证码（开发态固定验证码）
+ */
+export const sendCode = async (phone: string) => {
+  return post<{ code: string; expiresIn: number }>(API_PATHS.AUTH_SEND_CODE, { phone }, {
+    showLoading: true,
+    loadingText: '发送中...',
+  })
+}
+
 export default {
   login,
   register,
+  sendCode,
 }

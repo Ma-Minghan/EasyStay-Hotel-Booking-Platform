@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, Input, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useAuthStore } from '../../store/useAuthStore'
+import { sendCode } from '../../services/auth'
 import './index.scss'
 
 const Login = () => {
@@ -10,6 +11,8 @@ const Login = () => {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
+  const [verifyCode, setVerifyCode] = useState('')
+  const [sending, setSending] = useState(false)
 
   const handleLogin = async () => {
     if (!username || username.length < 3) {
@@ -37,11 +40,32 @@ const Login = () => {
       return
     }
     
-    const success = await register({ username, password, phone })
+    const success = await register({ username, password, phone, verifyCode })
     if (success) {
       // 注册成功后切换到登录模式
       setIsRegister(false)
       Taro.showToast({ title: '注册成功，请登录', icon: 'success' })
+    }
+  }
+
+  const handleSendCode = async () => {
+    if (!phone || phone.length < 6) {
+      Taro.showToast({ title: '请输入手机号', icon: 'none' })
+      return
+    }
+    if (sending) return
+    setSending(true)
+    try {
+      const response = await sendCode(phone)
+      if (response.code === 200) {
+        Taro.showToast({ title: '验证码已发送（固定码 123456）', icon: 'none' })
+      } else {
+        Taro.showToast({ title: response.message || '发送失败', icon: 'none' })
+      }
+    } catch (error: any) {
+      Taro.showToast({ title: error.message || '发送失败', icon: 'none' })
+    } finally {
+      setSending(false)
     }
   }
 
@@ -85,6 +109,22 @@ const Login = () => {
               placeholder="请输入手机号"
               onInput={e => setPhone(e.detail.value)}
             />
+          </View>
+        )}
+        {isRegister && (
+          <View className="field">
+            <Text className="label">验证码</Text>
+            <View className="code-row">
+              <Input
+                type="number"
+                value={verifyCode}
+                placeholder="请输入验证码"
+                onInput={e => setVerifyCode(e.detail.value)}
+              />
+              <View className={`code-btn ${sending ? 'disabled' : ''}`} onClick={handleSendCode}>
+                {sending ? '发送中' : '获取验证码'}
+              </View>
+            </View>
           </View>
         )}
         <Button className="btn" onClick={handleSubmit}>

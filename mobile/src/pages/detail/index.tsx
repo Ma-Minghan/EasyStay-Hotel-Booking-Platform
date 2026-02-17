@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { View, Swiper, SwiperItem, Image, Button, Text } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import { useRouter } from '@tarojs/taro'
 import { fetchHotelDetail, Hotel, Room } from '../../services/hotel'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useOrderStore } from '../../store/useOrderStore'
@@ -35,25 +35,30 @@ const HotelDetail = () => {
     setCalendarVisible(true)
   }
 
-  const handleConfirmBookingDate = (start: string, end: string, days: number) => {
+  const handleConfirmBookingDate = async (start: string, end: string, days: number) => {
     if (!selectedRoom || !detail) return
+
     setBookingInfo({
       roomName: selectedRoom.name,
       start,
       end,
-      days
+      days,
     })
-    addOrder({
+
+    const success = await addOrder({
       hotelId: detail.id,
-      hotelName: detail.name,
-      roomName: selectedRoom.name,
-      checkIn: start,
-      checkOut: end,
-      nights: days,
-      status: '待入住'
+      guestName: userInfo?.name || userInfo?.username || '游客',
+      guestPhone: userInfo?.phone || '',
+      roomType: selectedRoom.name,
+      checkInDate: start,
+      checkOutDate: end,
+      numberOfGuests: 1,
+      totalPrice: selectedRoom.price * days,
     })
-    setCalendarVisible(false)
-    Taro.showToast({ title: '预订成功，已加入订单', icon: 'none' })
+
+    if (success) {
+      setCalendarVisible(false)
+    }
   }
 
   const isFav = userInfo?.favorites.includes(Number(id))
@@ -88,8 +93,7 @@ const HotelDetail = () => {
         <View className="card booking-info">
           <Text className="booking-title">已选入住信息</Text>
           <Text className="muted">
-            {bookingInfo.roomName} · {bookingInfo.start} 至 {bookingInfo.end} ·{' '}
-            {bookingInfo.days} 晚
+            {bookingInfo.roomName} · {bookingInfo.start} 至 {bookingInfo.end} · {bookingInfo.days} 晚
           </Text>
         </View>
       )}
@@ -112,9 +116,7 @@ const HotelDetail = () => {
         ))}
       </View>
 
-      {!isLogin && (
-        <View className="login-tip">登录后可查看会员价与收藏记录</View>
-      )}
+      {!isLogin && <View className="login-tip">登录后可查看会员价与收藏记录</View>}
 
       <CustomCalendar
         visible={calendarVisible}

@@ -3,13 +3,55 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 const router = express.Router();
 
+// 开发态验证码存储（phone -> { code, expiresAt }）
+const verificationCodes = new Map();
+const FIXED_CODE = '123456';
+const CODE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * POST /api/auth/send-code
+ * 发送验证码（开发态固定验证码）
+ */
+router.post('/send-code', async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        code: 400,
+        message: '手机号不能为空',
+      });
+    }
+
+    verificationCodes.set(phone, {
+      code: FIXED_CODE,
+      expiresAt: Date.now() + CODE_TTL_MS,
+    });
+
+    return res.json({
+      code: 200,
+      message: '验证码已发送（开发环境固定码）',
+      data: {
+        code: FIXED_CODE,
+        expiresIn: CODE_TTL_MS,
+      },
+    });
+  } catch (error) {
+    console.error('Send code error:', error);
+    res.status(500).json({
+      code: 500,
+      message: error.message,
+    });
+  }
+});
+
 /**
  * POST /api/auth/register
  * 注册用户
  */
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password, role, phone, verifyCode } = req.body;
 
     // 参数验证
     if (!username || !password || !role) {
@@ -19,11 +61,29 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    if (!['admin', 'merchant'].includes(role)) {
+    if (!['admin', 'merchant', 'user'].includes(role)) {
       return res.status(400).json({
         code: 400,
-        message: '角色必须是 admin 或 merchant',
+        message: '角色必须是 admin、merchant 或 user',
       });
+    }
+
+    // 如果传了手机号，要求验证码通过
+    if (phone) {
+      const record = verificationCodes.get(phone);
+      if (!verifyCode) {
+        return res.status(400).json({
+          code: 400,
+          message: '请输入验证码',
+        });
+      }
+      if (!record || record.code !== verifyCode || record.expiresAt < Date.now()) {
+        return res.status(400).json({
+          code: 400,
+          message: '验证码无效或已过期',
+        });
+      }
+      verificationCodes.delete(phone);
     }
 
     // 检查用户是否已存在

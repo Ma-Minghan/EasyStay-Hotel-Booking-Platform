@@ -17,7 +17,7 @@ interface AuthState {
   userInfo: UserInfo | null
   isLogin: boolean
   login: (payload: { username: string; password: string }) => Promise<boolean>
-  register: (payload: { username: string; password: string; phone?: string }) => Promise<boolean>
+  register: (payload: { username: string; password: string; phone?: string; verifyCode?: string }) => Promise<boolean>
   logout: () => void
   toggleFavorite: (hotelId: number) => void
   updateUserInfo: (info: Partial<UserInfo>) => void

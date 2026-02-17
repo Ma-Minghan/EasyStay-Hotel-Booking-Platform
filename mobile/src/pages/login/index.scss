@@ -42,3 +42,24 @@
   font-size: 24px;
   text-decoration: underline;
 }
+
+.code-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.code-btn {
+  min-width: 140px;
+  height: 64px;
+  line-height: 64px;
+  text-align: center;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 12px;
+  font-size: 24px;
+}
+
+.code-btn.disabled {
+  background: #b3b3b3;
+}

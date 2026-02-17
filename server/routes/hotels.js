@@ -2,17 +2,35 @@ const express = require('express');
 const { Op } = require('sequelize');
 const { Hotel, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+
 const router = express.Router();
 
 /**
  * GET /api/hotels
- * 获取酒店列表（带权限检查和筛选）
+ * 获取酒店列表（支持角色、状态、城市、关键词筛选）
  */
 router.get('/', async (req, res) => {
   try {
     const { status, role, userId, city, keyword } = req.query;
     const where = {};
-    const searchOptions = {
+
+    if (role === 'merchant' && userId) {
+      where.merchantId = userId;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (city) {
+      where.city = city;
+    }
+
+    if (keyword) {
+      where.name = { [Op.like]: `%${keyword}%` };
+    }
+
+    const hotels = await Hotel.findAll({
       where,
       include: [
         {
@@ -21,40 +39,87 @@ router.get('/', async (req, res) => {
           attributes: ['id', 'username'],
         },
       ],
-    };
+      order: [['updatedAt', 'DESC']],
+    });
 
-    // 商户只看自己的酒店
-    if (role === 'merchant' && userId) {
-      where.merchantId = userId;
-    }
-
-    // 状态筛选
-    if (status) {
-      where.status = status;
-    }
-
-    // 城市筛选
-    if (city) {
-      where.city = city;
-    }
-
-    // 关键词搜索
-    if (keyword) {
-      where.name = {
-        [Op.like]: `%${keyword}%`,
-      };
-    }
-
-    const hotels = await Hotel.findAll(searchOptions);
-
-    res.json({
+    return res.json({
       code: 200,
       message: '获取成功',
       data: hotels,
     });
   } catch (error) {
     console.error('Get hotels error:', error);
-    res.status(500).json({
+    return res.status(500).json({
+      code: 500,
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/hotels/home-ads
+ * 获取首页广告位酒店列表（支持多条）
+ */
+router.get('/home-ads', async (_req, res) => {
+  try {
+    const hotels = await Hotel.findAll({
+      where: {
+        isHomeAd: true,
+        adStatus: 'approved',
+      },
+      include: [
+        {
+          model: User,
+          as: 'merchant',
+          attributes: ['id', 'username'],
+        },
+      ],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    return res.json({
+      code: 200,
+      message: '获取成功',
+      data: hotels,
+    });
+  } catch (error) {
+    console.error('Get home ad hotels error:', error);
+    return res.status(500).json({
+      code: 500,
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/hotels/home-ad
+ * 兼容旧版：返回单条广告（取第一条）
+ */
+router.get('/home-ad', async (_req, res) => {
+  try {
+    const hotel = await Hotel.findOne({
+      where: {
+        isHomeAd: true,
+        adStatus: 'approved',
+      },
+      include: [
+        {
+          model: User,
+          as: 'merchant',
+          attributes: ['id', 'username'],
+        },
+      ],
+      order: [['updatedAt', 'DESC']],
+    });
+
+    return res.json({
+      code: 200,
+      message: '获取成功',
+      data: hotel || null,
+    });
+  } catch (error) {
+    console.error('Get home ad hotel error:', error);
+    return res.status(500).json({
       code: 500,
       message: error.message,
     });
@@ -84,14 +149,14 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       code: 200,
       message: '获取成功',
       data: hotel,
     });
   } catch (error) {
     console.error('Get hotel detail error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       code: 500,
       message: error.message,
     });
@@ -118,7 +183,6 @@ router.post('/', authenticateToken, async (req, res) => {
       amenities,
     } = req.body;
 
-    // 参数验证
     if (!name || !location || !city || !pricePerNight) {
       return res.status(400).json({
         code: 400,
@@ -138,11 +202,10 @@ router.post('/', authenticateToken, async (req, res) => {
       phoneNumber,
       images: images || [],
       amenities: amenities || [],
-      status: 'pending', // 新增酒店默认待审核
-      merchantId: req.user.id, // 从 token 中获取商户 ID
+      status: 'pending',
+      merchantId: req.user.id,
     });
 
-    // 关联用户信息
     await hotel.reload({
       include: [
         {
@@ -153,14 +216,14 @@ router.post('/', authenticateToken, async (req, res) => {
       ],
     });
 
-    res.json({
+    return res.json({
       code: 200,
       message: '新增成功',
       data: hotel,
     });
   } catch (error) {
     console.error('Create hotel error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       code: 500,
       message: error.message,
     });
@@ -169,7 +232,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/hotels/:id
- * 编辑酒店（商户编辑内容或管理员审核）
+ * 编辑酒店（商户编辑内容，管理员审核状态）
  */
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
@@ -182,7 +245,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // 权限检查：商户只能编辑自己的酒店
     if (req.user.role === 'merchant' && hotel.merchantId !== req.user.id) {
       return res.status(403).json({
         code: 403,
@@ -205,7 +267,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       status,
     } = req.body;
 
-    // 商户可以编辑内容（不能改状态）
     if (req.user.role === 'merchant') {
       if (name !== undefined) hotel.name = name;
       if (description !== undefined) hotel.description = description;
@@ -220,7 +281,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
       if (amenities !== undefined) hotel.amenities = amenities;
     }
 
-    // 管理员可以审核（改状态）
     if (req.user.role === 'admin' && status !== undefined) {
       if (!['draft', 'pending', 'approved', 'rejected'].includes(status)) {
         return res.status(400).json({
@@ -233,7 +293,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     await hotel.save();
 
-    // 关联用户信息
     await hotel.reload({
       include: [
         {
@@ -244,14 +303,90 @@ router.put('/:id', authenticateToken, async (req, res) => {
       ],
     });
 
-    res.json({
+    return res.json({
       code: 200,
       message: '更新成功',
       data: hotel,
     });
   } catch (error) {
     console.error('Update hotel error:', error);
-    res.status(500).json({
+    return res.status(500).json({
+      code: 500,
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * PUT /api/hotels/:id/home-ad
+ * 广告位流程：
+ * - 商户：提交/取消广告申请（pending/none）
+ * - 管理员：审核广告申请（approved/rejected）
+ */
+router.put('/:id/home-ad', authenticateToken, async (req, res) => {
+  try {
+    const hotel = await Hotel.findByPk(req.params.id);
+    if (!hotel) {
+      return res.status(404).json({
+        code: 404,
+        message: '酒店不存在',
+      });
+    }
+
+    if (req.user.role === 'merchant') {
+      if (hotel.merchantId !== req.user.id) {
+        return res.status(403).json({
+          code: 403,
+          message: '无权限操作该酒店广告申请',
+        });
+      }
+
+      const enabled = req.body?.enabled !== false;
+      hotel.adStatus = enabled ? 'pending' : 'none';
+      hotel.isHomeAd = false;
+      await hotel.save();
+
+      return res.json({
+        code: 200,
+        message: enabled ? '广告申请已提交，等待管理员审核' : '广告申请已取消',
+        data: hotel,
+      });
+    }
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        code: 403,
+        message: '仅商家或管理员可操作广告位',
+      });
+    }
+
+    const reviewStatus = req.body?.reviewStatus;
+    if (!['approved', 'rejected'].includes(reviewStatus)) {
+      return res.status(400).json({
+        code: 400,
+        message: '管理员审核参数无效',
+      });
+    }
+
+    if (reviewStatus === 'approved') {
+      // 允许多个广告并行投放
+      hotel.isHomeAd = true;
+      hotel.adStatus = 'approved';
+    } else {
+      hotel.isHomeAd = false;
+      hotel.adStatus = 'rejected';
+    }
+
+    await hotel.save();
+
+    return res.json({
+      code: 200,
+      message: reviewStatus === 'approved' ? '广告审核通过并已投放' : '广告审核已拒绝',
+      data: hotel,
+    });
+  } catch (error) {
+    console.error('Set home ad hotel error:', error);
+    return res.status(500).json({
       code: 500,
       message: error.message,
     });
@@ -260,7 +395,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/hotels/:id
- * 删除酒店（只有商户自己能删）
+ * 删除酒店（商户仅可删除自己的酒店；管理员可删除任意酒店）
  */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
@@ -273,7 +408,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // 权限检查：只有商户自己和管理员能删
     if (req.user.role === 'merchant' && hotel.merchantId !== req.user.id) {
       return res.status(403).json({
         code: 403,
@@ -283,14 +417,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     await hotel.destroy();
 
-    res.json({
+    return res.json({
       code: 200,
       message: '删除成功',
       data: hotel,
     });
   } catch (error) {
     console.error('Delete hotel error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       code: 500,
       message: error.message,
     });
