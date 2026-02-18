@@ -12,6 +12,8 @@ export interface Hotel {
   id: number
   name: string
   city: string
+  longitude?: number
+  latitude?: number
   address?: string
   description?: string
   price: number
@@ -58,6 +60,11 @@ const parseJsonArray = (value: any, fallback: string[] = []): string[] => {
   }
 }
 
+const toNumberOr = (value: any, fallback: number) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
 const transformHotelData = (hotel: any): Hotel => {
   const images = parseJsonArray(hotel.images)
   const thumb = hotel.imageUrl || images[0] || 'https://picsum.photos/id/401/600/400'
@@ -82,6 +89,8 @@ const transformHotelData = (hotel: any): Hotel => {
   return {
     id: hotel.id,
     name: hotel.name,
+    longitude: toNumberOr(hotel.longitude ?? hotel.lng, 121.4737),
+    latitude: toNumberOr(hotel.latitude ?? hotel.lat, 31.2304),
     city: hotel.city || '未知',
     address: hotel.address || hotel.location,
     description: hotel.description,

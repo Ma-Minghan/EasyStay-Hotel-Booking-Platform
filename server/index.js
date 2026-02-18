@@ -61,7 +61,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`✅ Server is running on http://localhost:${PORT}`);
       console.log(`📝 API Documentation:`);
-      console.log(`   - Auth: POST /api/auth/login, /api/auth/register`);
+      console.log(`   - Auth: POST /api/auth/login, /api/auth/register, /api/auth/wechat-login, /api/auth/wechat-bind`);
       console.log(`   - Hotels: GET /api/hotels, POST /api/hotels, PUT /api/hotels/:id, DELETE /api/hotels/:id`);
       console.log(`   - Bookings: GET /api/bookings, POST /api/bookings, PUT /api/bookings/:id, DELETE /api/bookings/:id`);
       console.log(`   - Statistics: GET /api/statistics/revenue`);

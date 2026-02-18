@@ -26,6 +26,8 @@ export const API_PATHS = {
   AUTH_LOGIN: '/api/auth/login',
   AUTH_REGISTER: '/api/auth/register',
   AUTH_SEND_CODE: '/api/auth/send-code',
+  AUTH_WECHAT_LOGIN: '/api/auth/wechat-login',
+  AUTH_WECHAT_BIND: '/api/auth/wechat-bind',
 
   // 酒店
   HOTELS: '/api/hotels',
