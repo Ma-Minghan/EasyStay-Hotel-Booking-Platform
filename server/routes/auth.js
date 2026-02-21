@@ -2,14 +2,19 @@ const express = require('express');
 const https = require('https');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const Dypnsapi20170525 = require('@alicloud/dypnsapi20170525');
+const OpenApi = require('@alicloud/openapi-client');
+const Util = require('@alicloud/tea-util');
+const Credential = require('@alicloud/credentials');
 const { User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-const verificationCodes = new Map();
-const FIXED_CODE = '123456';
 const CODE_TTL_MS = 5 * 60 * 1000;
+const SEND_CODE_COOLDOWN_MS = Number(process.env.SMS_SEND_CODE_COOLDOWN_MS || 60 * 1000);
+const sendCodeCooldownByPhone = new Map();
+let aliyunSmsClient = null;
 
 const wechatAccessTokenCache = {
   token: '',
@@ -70,6 +75,124 @@ const requestPostJson = (url, payload) =>
     req.write(data);
     req.end();
   });
+
+const normalizePhone = phone => String(phone || '').trim();
+
+const isValidChinaMobilePhone = phone => /^1\d{10}$/.test(phone);
+
+const getAliyunSmsBizConfig = () => {
+  const signName = process.env.ALIYUN_SMS_SIGN_NAME || '';
+  const templateCode = process.env.ALIYUN_SMS_TEMPLATE_CODE || '';
+  const schemeName = process.env.ALIYUN_SMS_SCHEME_NAME || '';
+  const countryCode = process.env.ALIYUN_SMS_COUNTRY_CODE || '86';
+  const codeKey = process.env.ALIYUN_SMS_TEMPLATE_CODE_KEY || 'code';
+  const extraJson = process.env.ALIYUN_SMS_TEMPLATE_EXTRA_JSON || '{}';
+
+  if (!signName || !templateCode) {
+    throw new Error(
+      'Aliyun SMS config missing: ALIYUN_SMS_SIGN_NAME / ALIYUN_SMS_TEMPLATE_CODE'
+    );
+  }
+
+  let extraParams = {};
+  try {
+    extraParams = JSON.parse(extraJson);
+  } catch (error) {
+    throw new Error('ALIYUN_SMS_TEMPLATE_EXTRA_JSON must be valid JSON');
+  }
+
+  return { signName, templateCode, schemeName, countryCode, codeKey, extraParams };
+};
+
+const getAliyunSmsClient = () => {
+  if (aliyunSmsClient) return aliyunSmsClient;
+
+  const credential = new Credential.default();
+  const config = new OpenApi.Config({
+    credential,
+  });
+  config.endpoint = process.env.ALIYUN_DYPN_ENDPOINT || 'dypnsapi.aliyuncs.com';
+  aliyunSmsClient = new Dypnsapi20170525.default(config);
+  return aliyunSmsClient;
+};
+
+const callAliyunSendSmsVerifyCode = async phone => {
+  const {
+    signName,
+    templateCode,
+    schemeName,
+    countryCode,
+    codeKey,
+    extraParams,
+  } = getAliyunSmsBizConfig();
+
+  const client = getAliyunSmsClient();
+  const request = new Dypnsapi20170525.SendSmsVerifyCodeRequest({
+    phoneNumber: phone,
+    signName,
+    templateCode,
+    countryCode,
+    outId: `easy_stay_${Date.now()}`,
+    templateParam: JSON.stringify({
+      ...extraParams,
+      [codeKey]: '##code##',
+    }),
+  });
+
+  if (schemeName) {
+    request.schemeName = schemeName;
+  }
+
+  const resp = await client.sendSmsVerifyCodeWithOptions(
+    request,
+    new Util.RuntimeOptions({})
+  );
+  const body = resp && resp.body ? resp.body : {};
+  const code = String(body.code || '').toUpperCase();
+
+  if (code && code !== 'OK') {
+    throw new Error(body.message || `Aliyun send sms failed: ${body.code}`);
+  }
+
+  return {
+    requestId: body.requestId || '',
+    bizId: (body.model && body.model.bizId) || '',
+  };
+};
+
+const callAliyunCheckSmsVerifyCode = async (phone, verifyCode) => {
+  const { schemeName, countryCode } = getAliyunSmsBizConfig();
+  const client = getAliyunSmsClient();
+  const request = new Dypnsapi20170525.CheckSmsVerifyCodeRequest({
+    phoneNumber: phone,
+    verifyCode,
+    countryCode,
+  });
+
+  if (schemeName) {
+    request.schemeName = schemeName;
+  }
+
+  const resp = await client.checkSmsVerifyCodeWithOptions(
+    request,
+    new Util.RuntimeOptions({})
+  );
+  const body = resp && resp.body ? resp.body : {};
+  const resultRaw =
+    (body.model && (body.model.verifyResult || body.model.verifyresult)) ||
+    body.verifyResult ||
+    body.verifyresult ||
+    '';
+  const verifyResult = String(resultRaw).toUpperCase();
+  const passed = verifyResult === 'PASS' || verifyResult === 'SUCCESS' || resultRaw === true;
+
+  return {
+    passed,
+    verifyResult,
+    code: String(body.code || '').toUpperCase(),
+    message: body.message || '',
+  };
+};
 
 const makeJwtPayload = user => ({
   id: user.id,
@@ -208,7 +331,7 @@ const createUniqueWechatUsername = async base => {
 
 router.post('/send-code', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const phone = normalizePhone(req.body && req.body.phone);
     if (!phone) {
       return res.status(400).json({
         code: 400,
@@ -216,24 +339,40 @@ router.post('/send-code', async (req, res) => {
       });
     }
 
-    verificationCodes.set(phone, {
-      code: FIXED_CODE,
-      expiresAt: Date.now() + CODE_TTL_MS,
-    });
+    if (!isValidChinaMobilePhone(phone)) {
+      return res.status(400).json({
+        code: 400,
+        message: '手机号格式不正确',
+      });
+    }
+
+    const now = Date.now();
+    const lastSentAt = sendCodeCooldownByPhone.get(phone) || 0;
+    if (now - lastSentAt < SEND_CODE_COOLDOWN_MS) {
+      const leftMs = SEND_CODE_COOLDOWN_MS - (now - lastSentAt);
+      return res.status(429).json({
+        code: 429,
+        message: `发送过于频繁，请在 ${Math.ceil(leftMs / 1000)} 秒后重试`,
+      });
+    }
+
+    const result = await callAliyunSendSmsVerifyCode(phone);
+    sendCodeCooldownByPhone.set(phone, now);
 
     return res.json({
       code: 200,
-      message: '验证码已发送（开发环境固定码）',
+      message: '验证码已发送',
       data: {
-        code: FIXED_CODE,
         expiresIn: CODE_TTL_MS,
+        requestId: result.requestId,
+        bizId: result.bizId,
       },
     });
   } catch (error) {
     console.error('Send code error:', error);
     return res.status(500).json({
       code: 500,
-      message: error.message,
+      message: error.message || '验证码发送失败',
     });
   }
 });
@@ -393,7 +532,8 @@ router.post('/wechat-bind', authenticateToken, async (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, role, phone, verifyCode } = req.body;
+    const { username, password, role, verifyCode } = req.body;
+    const phone = normalizePhone(req.body && req.body.phone);
     if (!username || !password || !role) {
       return res.status(400).json({
         code: 400,
@@ -409,20 +549,34 @@ router.post('/register', async (req, res) => {
     }
 
     if (phone) {
-      const record = verificationCodes.get(phone);
+      if (!isValidChinaMobilePhone(phone)) {
+        return res.status(400).json({
+          code: 400,
+          message: '手机号格式不正确',
+        });
+      }
+
       if (!verifyCode) {
         return res.status(400).json({
           code: 400,
           message: '请输入验证码',
         });
       }
-      if (!record || record.code !== verifyCode || record.expiresAt < Date.now()) {
-        return res.status(400).json({
-          code: 400,
-          message: '验证码无效或已过期',
+
+      const verifyResult = await callAliyunCheckSmsVerifyCode(phone, verifyCode);
+      if (verifyResult.code && verifyResult.code !== 'OK') {
+        return res.status(502).json({
+          code: 502,
+          message: verifyResult.message || '验证码校验服务异常，请稍后重试',
         });
       }
-      verificationCodes.delete(phone);
+
+      if (!verifyResult.passed) {
+        return res.status(400).json({
+          code: 400,
+          message: verifyResult.message || '验证码无效或已过期',
+        });
+      }
     }
 
     const existingUser = await User.findOne({ where: { username } });

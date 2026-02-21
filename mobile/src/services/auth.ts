@@ -61,7 +61,7 @@ export const register = async (params: RegisterParams) =>
   )
 
 export const sendCode = async (phone: string) =>
-  post<{ code: string; expiresIn: number }>(API_PATHS.AUTH_SEND_CODE, { phone }, {
+  post<{ expiresIn: number; requestId?: string; bizId?: string }>(API_PATHS.AUTH_SEND_CODE, { phone }, {
     showLoading: true,
     loadingText: '发送中...',
   })

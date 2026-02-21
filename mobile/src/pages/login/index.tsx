@@ -78,8 +78,8 @@ const Login = () => {
   }
 
   const handleSendCode = async () => {
-    if (!phone || phone.length < 6) {
-      Taro.showToast({ title: '请输入手机号', icon: 'none' })
+    if (!phone || !/^1\d{10}$/.test(phone)) {
+      Taro.showToast({ title: '请输入正确的 11 位手机号', icon: 'none' })
       return
     }
     if (sending) return
@@ -89,7 +89,7 @@ const Login = () => {
       const response = await sendCode(phone)
       if (response.code === 200) {
         Taro.showToast({
-          title: '验证码已发送（开发环境固定码 123456）',
+          title: '验证码已发送，请注意查收短信',
           icon: 'none',
         })
       } else {
