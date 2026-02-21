@@ -25,6 +25,17 @@ Booking.belongsTo(Hotel, {
   as: 'hotel',
 });
 
+User.hasMany(Booking, {
+  foreignKey: 'userId',
+  as: 'bookings',
+  onDelete: 'SET NULL',
+});
+
+Booking.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'user',
+});
+
 // 导出模型
 module.exports = {
   User,

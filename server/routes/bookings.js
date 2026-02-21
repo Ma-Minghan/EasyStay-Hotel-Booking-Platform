@@ -4,13 +4,26 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+const parsePositiveInt = value => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const canAccessBooking = (currentUser, booking) => {
+  if (currentUser.role === 'admin') return true;
+  if (currentUser.role === 'merchant') {
+    return booking.hotel && booking.hotel.merchantId === currentUser.id;
+  }
+  return booking.userId === currentUser.id;
+};
+
 /**
  * GET /api/bookings
  * 获取预订列表（带权限检查）
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const { hotelId, status, role, userId } = req.query;
+    const { hotelId, status, userId } = req.query;
     const where = {};
     const searchOptions = {
       where,
@@ -18,7 +31,7 @@ router.get('/', async (req, res) => {
         {
           model: Hotel,
           as: 'hotel',
-          attributes: ['id', 'name', 'city'],
+          attributes: ['id', 'name', 'city', 'merchantId'],
           include: [
             {
               model: User,
@@ -31,19 +44,32 @@ router.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']],
     };
 
-    // 商户只看自己酒店的预订
-    if (role === 'merchant' && userId) {
-      searchOptions.include[0].where = {
-        merchantId: userId,
-      };
-    }
+    const hotelIdInt = parsePositiveInt(hotelId);
+    const userIdInt = parsePositiveInt(userId);
 
-    if (hotelId) {
-      where.hotelId = hotelId;
+    if (hotelIdInt) {
+      where.hotelId = hotelIdInt;
     }
 
     if (status) {
       where.status = status;
+    }
+
+    // 用户只能看自己的订单
+    if (req.user.role === 'user') {
+      where.userId = req.user.id;
+    }
+
+    // 商户只能看自己酒店的订单
+    if (req.user.role === 'merchant') {
+      searchOptions.include[0].where = {
+        merchantId: req.user.id,
+      };
+    }
+
+    // 管理员允许按用户筛选
+    if (req.user.role === 'admin' && userIdInt) {
+      where.userId = userIdInt;
     }
 
     const bookings = await Booking.findAll(searchOptions);
@@ -66,14 +92,14 @@ router.get('/', async (req, res) => {
  * GET /api/bookings/:id
  * 获取单个预订详情
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const booking = await Booking.findByPk(req.params.id, {
       include: [
         {
           model: Hotel,
           as: 'hotel',
-          attributes: ['id', 'name', 'city', 'pricePerNight'],
+          attributes: ['id', 'name', 'city', 'pricePerNight', 'merchantId'],
         },
       ],
     });
@@ -82,6 +108,13 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({
         code: 404,
         message: '预订不存在',
+      });
+    }
+
+    if (!canAccessBooking(req.user, booking)) {
+      return res.status(403).json({
+        code: 403,
+        message: '无权限查看该预订',
       });
     }
 
@@ -103,7 +136,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/bookings
  * 新增预订
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const {
       hotelId,
@@ -151,6 +184,7 @@ router.post('/', async (req, res) => {
 
     const booking = await Booking.create({
       hotelId,
+      userId: req.user.id,
       guestName,
       // 手机号未填写时给默认值，避免前端无输入框时直接失败
       guestPhone: guestPhone || '未填写',
@@ -211,8 +245,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // 权限检查：商户只能改自己酒店的预订，管理员可以改任何
-    if (req.user.role === 'merchant' && booking.hotel.merchantId !== req.user.id) {
+    if (!canAccessBooking(req.user, booking)) {
       return res.status(403).json({
         code: 403,
         message: '无权限修改该预订',
@@ -220,6 +253,22 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     const { status, remarks } = req.body;
+
+    if (req.user.role === 'user') {
+      if (status && status !== 'cancelled') {
+        return res.status(403).json({
+          code: 403,
+          message: '普通用户仅可取消自己的预订',
+        });
+      }
+
+      if (remarks !== undefined) {
+        return res.status(403).json({
+          code: 403,
+          message: '普通用户不可修改订单备注',
+        });
+      }
+    }
 
     if (status) {
       if (!['pending', 'confirmed', 'cancelled'].includes(status)) {
@@ -284,8 +333,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // 权限检查：商户只能删除自己酒店相关预订
-    if (req.user.role === 'merchant' && booking.hotel.merchantId !== req.user.id) {
+    if (!canAccessBooking(req.user, booking)) {
       return res.status(403).json({
         code: 403,
         message: '无权限删除',
