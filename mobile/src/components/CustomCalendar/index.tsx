@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { ScrollView, Text, View } from '@tarojs/components'
 import dayjs from 'dayjs'
+import { getHolidayName } from '../../utils/holiday'
+import { loadHolidayRulesToCache } from '../../services/holiday'
 import './index.scss'
 
 interface Props {
@@ -39,6 +41,7 @@ const CustomCalendar: React.FC<Props> = ({
   const [endDate, setEndDate] = useState('')
   const [monthOffset, setMonthOffset] = useState(0)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [, setHolidayVersion] = useState(0)
 
   const minSelectableDate = useMemo(() => {
     if (!minDate) return dayjs().startOf('day')
@@ -96,6 +99,21 @@ const CustomCalendar: React.FC<Props> = ({
     const clamped = Math.max(0, Math.min(diff, maxMonthCount - 1))
     setMonthOffset(clamped)
   }, [visible, initialStartDate, initialEndDate, minMonth, maxMonthCount])
+
+  useEffect(() => {
+    if (!visible) return
+    let active = true
+
+    loadHolidayRulesToCache().then(changed => {
+      if (active && changed) {
+        setHolidayVersion(prev => prev + 1)
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [visible])
 
   const handleSelect = (value: string, disabled: boolean) => {
     if (disabled) return
@@ -213,6 +231,7 @@ const CustomCalendar: React.FC<Props> = ({
             {monthDays.map(day => {
               const isStart = day.value === startDate
               const isEnd = day.value === endDate
+              const holidayName = getHolidayName(day.value)
               const inRange =
                 !!startDate &&
                 !!endDate &&
@@ -225,6 +244,7 @@ const CustomCalendar: React.FC<Props> = ({
               if (isStart) classNames.push('start')
               if (isEnd) classNames.push('end')
               if (isStart || isEnd) classNames.push('selected')
+              if (holidayName) classNames.push('has-holiday')
 
               return (
                 <View
@@ -232,7 +252,8 @@ const CustomCalendar: React.FC<Props> = ({
                   className={classNames.join(' ')}
                   onClick={() => handleSelect(day.value, day.disabled)}
                 >
-                  <Text>{day.day}</Text>
+                  <Text className='day-number'>{day.day}</Text>
+                  {holidayName && <Text className='holiday-text'>{holidayName}</Text>}
                 </View>
               )
             })}

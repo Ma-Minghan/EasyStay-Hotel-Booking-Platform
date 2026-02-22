@@ -73,6 +73,21 @@
   font-weight: 600;
 }
 
+.booking-price {
+  color: #ff4d4f;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.booking-discount {
+  color: #16a34a;
+  font-size: 24px;
+}
+
+.line-through {
+  text-decoration: line-through;
+}
+
 .room-item {
   display: flex;
   justify-content: space-between;

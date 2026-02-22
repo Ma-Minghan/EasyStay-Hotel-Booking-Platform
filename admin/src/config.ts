@@ -31,6 +31,14 @@ export const API_ENDPOINTS = {
   map: {
     search: '/api/map/search',
   },
+  holidays: {
+    list: '/api/holidays',
+    manage: '/api/holidays/manage',
+    create: '/api/holidays',
+    update: (id: string | number) => `/api/holidays/${id}`,
+    delete: (id: string | number) => `/api/holidays/${id}`,
+    sync: '/api/holidays/sync',
+  },
 };
 
 // 状态常量

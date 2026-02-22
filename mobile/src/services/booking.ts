@@ -33,6 +33,7 @@ export interface CreateBookingParams {
   guestName: string
   guestPhone: string
   roomType: string
+  unitPrice?: number
   checkInDate: string
   checkOutDate: string
   numberOfGuests: number

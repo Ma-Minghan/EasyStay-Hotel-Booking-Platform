@@ -1,5 +1,6 @@
 const express = require('express');
-const { Booking, Hotel, User } = require('../models');
+const { Op } = require('sequelize');
+const { Booking, Hotel, User, HolidayRule } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -15,6 +16,56 @@ const canAccessBooking = (currentUser, booking) => {
     return booking.hotel && booking.hotel.merchantId === currentUser.id;
   }
   return booking.userId === currentUser.id;
+};
+
+const toDateOnlyText = date => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const addOneDay = date => {
+  const copied = new Date(date.getTime());
+  copied.setDate(copied.getDate() + 1);
+  return copied;
+};
+
+const calculateTotalPriceByHolidayRules = async ({ checkInDate, checkOutDate, unitPrice }) => {
+  const startDate = new Date(checkInDate);
+  const endDate = new Date(checkOutDate);
+  if (!Number.isFinite(unitPrice) || unitPrice <= 0 || startDate >= endDate) {
+    return 0;
+  }
+
+  const queryStart = toDateOnlyText(startDate);
+  const queryEnd = toDateOnlyText(addOneDay(new Date(endDate.getTime() - 24 * 60 * 60 * 1000)));
+
+  const holidayRules = await HolidayRule.findAll({
+    where: {
+      isActive: true,
+      startDate: { [Op.lte]: queryEnd },
+      endDate: { [Op.gte]: queryStart },
+    },
+    order: [['discountRate', 'ASC']],
+  });
+
+  let cursor = new Date(startDate);
+  let total = 0;
+
+  while (cursor < endDate) {
+    const dateText = toDateOnlyText(cursor);
+    const matchedRates = holidayRules
+      .filter(rule => rule.startDate <= dateText && rule.endDate >= dateText)
+      .map(rule => Number(rule.discountRate))
+      .filter(rate => Number.isFinite(rate) && rate > 0 && rate <= 1);
+
+    const dayRate = matchedRates.length > 0 ? Math.min(...matchedRates) : 1;
+    total += unitPrice * dayRate;
+    cursor = addOneDay(cursor);
+  }
+
+  return Number(total.toFixed(2));
 };
 
 /**
@@ -147,6 +198,7 @@ router.post('/', authenticateToken, async (req, res) => {
       checkOutDate,
       numberOfRooms,
       numberOfGuests,
+      unitPrice,
       totalPrice,
       remarks,
     } = req.body;
@@ -182,6 +234,26 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    const parsedUnitPrice = Number(unitPrice);
+    const hasValidUnitPrice = Number.isFinite(parsedUnitPrice) && parsedUnitPrice > 0;
+    const parsedTotalPrice = Number(totalPrice);
+
+    let calculatedTotalPrice = parsedTotalPrice;
+    if (hasValidUnitPrice) {
+      calculatedTotalPrice = await calculateTotalPriceByHolidayRules({
+        checkInDate,
+        checkOutDate,
+        unitPrice: parsedUnitPrice,
+      });
+    } else if (!Number.isFinite(parsedTotalPrice) || parsedTotalPrice < 0) {
+      const hotelUnitPrice = Number(hotel.pricePerNight);
+      calculatedTotalPrice = await calculateTotalPriceByHolidayRules({
+        checkInDate,
+        checkOutDate,
+        unitPrice: Number.isFinite(hotelUnitPrice) && hotelUnitPrice > 0 ? hotelUnitPrice : 0,
+      });
+    }
+
     const booking = await Booking.create({
       hotelId,
       userId: req.user.id,
@@ -193,7 +265,7 @@ router.post('/', authenticateToken, async (req, res) => {
       checkOutDate: checkOut,
       numberOfRooms: numberOfRooms || 1,
       numberOfGuests: numberOfGuests || 1,
-      totalPrice: totalPrice || 0,
+      totalPrice: Number.isFinite(calculatedTotalPrice) ? calculatedTotalPrice : 0,
       status: 'pending',
       remarks,
     });

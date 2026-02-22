@@ -10,6 +10,7 @@ const hotelRoutes = require('./routes/hotels');
 const bookingRoutes = require('./routes/bookings');
 const statisticsRoutes = require('./routes/statistics');
 const mapRoutes = require('./routes/map');
+const holidayRoutes = require('./routes/holidays');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +40,9 @@ app.use('/api/statistics', statisticsRoutes);
 
 // 地图路由
 app.use('/api/map', mapRoutes);
+
+// 节假日与活动路由
+app.use('/api/holidays', holidayRoutes);
 
 // ==================== 错误处理 ====================
 app.use((err, req, res, next) => {
@@ -71,6 +75,7 @@ const startServer = async () => {
       console.log(`   - Statistics: GET /api/statistics/revenue`);
       console.log(`   - Map(Tencent->Baidu fallback): GET /api/map/regeo?longitude=...&latitude=...`);
       console.log(`   - Map(Tencent->Baidu fallback): GET /api/map/search?keyword=...&region=...`);
+      console.log(`   - Holidays: GET /api/holidays, GET /api/holidays/manage, POST /api/holidays/sync`);
       console.log(`   - Map Keys: TENCENT_MAP_KEY, BAIDU_MAP_AK`);
     });
   } catch (error) {

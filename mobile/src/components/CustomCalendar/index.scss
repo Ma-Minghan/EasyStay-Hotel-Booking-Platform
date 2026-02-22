@@ -132,10 +132,22 @@
   border-radius: 12px;
   background: #f8fafc;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
   color: #0f172a;
+  gap: 2px;
+}
+
+.day-number {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.holiday-text {
+  font-size: 18px;
+  line-height: 1.1;
+  color: #f97316;
 }
 
 .day-item.empty {
@@ -145,6 +157,10 @@
 .day-item.disabled {
   color: #cbd5e1;
   background: #f8fafc;
+}
+
+.day-item.disabled .holiday-text {
+  color: #cbd5e1;
 }
 
 .day-item.range {
@@ -157,6 +173,10 @@
   background: #1d4ed8;
   color: #fff;
   font-weight: 600;
+}
+
+.day-item.selected .holiday-text {
+  color: #dbeafe;
 }
 
 .day-item.start,

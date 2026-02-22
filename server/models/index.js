@@ -1,6 +1,7 @@
 const User = require('./User');
 const Hotel = require('./Hotel');
 const Booking = require('./Booking');
+const HolidayRule = require('./HolidayRule');
 
 // 定义模型关联
 User.hasMany(Hotel, {
@@ -41,4 +42,5 @@ module.exports = {
   User,
   Hotel,
   Booking,
+  HolidayRule,
 };

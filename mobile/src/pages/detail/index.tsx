@@ -7,6 +7,8 @@ import { useOrderStore } from '../../store/useOrderStore'
 import LoginGuard from '../../components/LoginGuard'
 import CustomCalendar from '../../components/CustomCalendar'
 import { formatPrice } from '../../utils/format'
+import { calculateStayPriceWithHolidayDiscount } from '../../utils/holiday'
+import { loadHolidayRulesToCache } from '../../services/holiday'
 import './index.scss'
 
 interface BookingInfo {
@@ -14,6 +16,12 @@ interface BookingInfo {
   start: string
   end: string
   days: number
+  originalPrice: number
+  finalPrice: number
+  discountAmount: number
+  holidayNights: number
+  holidayNames: string[]
+  appliedDiscountRates: number[]
 }
 
 interface GeoPoint {
@@ -34,6 +42,7 @@ const HotelDetail = () => {
   useEffect(() => {
     if (!id) return
     fetchHotelDetail(Number(id)).then(setDetail)
+    loadHolidayRulesToCache()
   }, [id])
 
   const hotelPoint = useMemo<GeoPoint>(
@@ -79,12 +88,24 @@ const HotelDetail = () => {
 
   const handleConfirmBookingDate = async (start: string, end: string, days: number) => {
     if (!selectedRoom || !detail) return
+    await loadHolidayRulesToCache({ startDate: start, endDate: end })
+    const priceDetail = calculateStayPriceWithHolidayDiscount({
+      startDate: start,
+      endDate: end,
+      basePrice: selectedRoom.price,
+    })
 
     setBookingInfo({
       roomName: selectedRoom.name,
       start,
       end,
       days,
+      originalPrice: priceDetail.originalPrice,
+      finalPrice: priceDetail.totalPrice,
+      discountAmount: priceDetail.discountAmount,
+      holidayNights: priceDetail.holidayNights,
+      holidayNames: priceDetail.holidayNames,
+      appliedDiscountRates: priceDetail.appliedDiscountRates,
     })
 
     const success = await addOrder({
@@ -92,10 +113,11 @@ const HotelDetail = () => {
       guestName: userInfo?.name || userInfo?.username || '游客',
       guestPhone: userInfo?.phone || '',
       roomType: selectedRoom.name,
+      unitPrice: selectedRoom.price,
       checkInDate: start,
       checkOutDate: end,
       numberOfGuests: 1,
-      totalPrice: selectedRoom.price * days,
+      totalPrice: priceDetail.totalPrice,
     })
 
     if (success) {
@@ -181,6 +203,19 @@ const HotelDetail = () => {
           <Text className='muted'>
             {bookingInfo.roomName} · {bookingInfo.start} 至 {bookingInfo.end} · {bookingInfo.days} 晚
           </Text>
+          <Text className='booking-price'>订单总价：{formatPrice(bookingInfo.finalPrice)}</Text>
+          {bookingInfo.discountAmount > 0 && (
+            <>
+              <Text className='booking-discount'>节假日优惠：-{formatPrice(bookingInfo.discountAmount)}</Text>
+              <Text className='muted'>
+                命中 {bookingInfo.holidayNights} 晚（{bookingInfo.holidayNames.join('、')}），
+                {bookingInfo.appliedDiscountRates.length === 1
+                  ? `按 ${Math.round(bookingInfo.appliedDiscountRates[0] * 100) / 10} 折计价`
+                  : '按活动折扣价计价'}
+              </Text>
+              <Text className='muted line-through'>原价：{formatPrice(bookingInfo.originalPrice)}</Text>
+            </>
+          )}
         </View>
       )}
 
