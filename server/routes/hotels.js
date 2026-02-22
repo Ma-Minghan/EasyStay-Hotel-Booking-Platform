@@ -5,6 +5,20 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+const parseCoordinate = value => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return null;
+  }
+  return num;
+};
+
+const isValidLatitude = value => Number.isFinite(value) && value >= -90 && value <= 90;
+const isValidLongitude = value => Number.isFinite(value) && value >= -180 && value <= 180;
+
 /**
  * GET /api/hotels
  * 获取酒店列表（支持角色、状态、城市、关键词筛选）
@@ -174,6 +188,8 @@ router.post('/', authenticateToken, async (req, res) => {
       description,
       location,
       city,
+      longitude,
+      latitude,
       rating,
       pricePerNight,
       totalRooms,
@@ -190,11 +206,44 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    const parsedLongitude = parseCoordinate(longitude);
+    const parsedLatitude = parseCoordinate(latitude);
+
+    if (parsedLongitude === null || parsedLatitude === null) {
+      return res.status(400).json({
+        code: 400,
+        message: '经纬度必须是有效数字',
+      });
+    }
+
+    if ((parsedLongitude === undefined) !== (parsedLatitude === undefined)) {
+      return res.status(400).json({
+        code: 400,
+        message: '请同时提交经度和纬度',
+      });
+    }
+
+    if (parsedLongitude === undefined || parsedLatitude === undefined) {
+      return res.status(400).json({
+        code: 400,
+        message: '请先在地图中选点后再提交酒店',
+      });
+    }
+
+    if (!isValidLongitude(parsedLongitude) || !isValidLatitude(parsedLatitude)) {
+      return res.status(400).json({
+        code: 400,
+        message: '经纬度超出范围',
+      });
+    }
+
     const hotel = await Hotel.create({
       name,
       description,
       location,
       city,
+      longitude: parsedLongitude,
+      latitude: parsedLatitude,
       rating: rating || 0,
       pricePerNight,
       totalRooms: totalRooms || 0,
@@ -257,6 +306,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       description,
       location,
       city,
+      longitude,
+      latitude,
       rating,
       pricePerNight,
       totalRooms,
@@ -267,11 +318,41 @@ router.put('/:id', authenticateToken, async (req, res) => {
       status,
     } = req.body;
 
+    const parsedLongitude = parseCoordinate(longitude);
+    const parsedLatitude = parseCoordinate(latitude);
+
+    if (parsedLongitude === null || parsedLatitude === null) {
+      return res.status(400).json({
+        code: 400,
+        message: '经纬度必须是有效数字',
+      });
+    }
+
+    if ((parsedLongitude === undefined) !== (parsedLatitude === undefined)) {
+      return res.status(400).json({
+        code: 400,
+        message: '请同时提交经度和纬度',
+      });
+    }
+
+    if (
+      parsedLongitude !== undefined &&
+      parsedLatitude !== undefined &&
+      (!isValidLongitude(parsedLongitude) || !isValidLatitude(parsedLatitude))
+    ) {
+      return res.status(400).json({
+        code: 400,
+        message: '经纬度超出范围',
+      });
+    }
+
     if (req.user.role === 'merchant') {
       if (name !== undefined) hotel.name = name;
       if (description !== undefined) hotel.description = description;
       if (location !== undefined) hotel.location = location;
       if (city !== undefined) hotel.city = city;
+      if (parsedLongitude !== undefined) hotel.longitude = parsedLongitude;
+      if (parsedLatitude !== undefined) hotel.latitude = parsedLatitude;
       if (rating !== undefined) hotel.rating = rating;
       if (pricePerNight !== undefined) hotel.pricePerNight = pricePerNight;
       if (totalRooms !== undefined) hotel.totalRooms = totalRooms;

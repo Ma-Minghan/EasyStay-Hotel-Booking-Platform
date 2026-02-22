@@ -69,7 +69,9 @@ const startServer = async () => {
       console.log(`   - Hotels: GET /api/hotels, POST /api/hotels, PUT /api/hotels/:id, DELETE /api/hotels/:id`);
       console.log(`   - Bookings: GET /api/bookings, POST /api/bookings, PUT /api/bookings/:id, DELETE /api/bookings/:id`);
       console.log(`   - Statistics: GET /api/statistics/revenue`);
-      console.log(`   - Map(Tencent): GET /api/map/regeo?longitude=...&latitude=...`);
+      console.log(`   - Map(Tencent->Baidu fallback): GET /api/map/regeo?longitude=...&latitude=...`);
+      console.log(`   - Map(Tencent->Baidu fallback): GET /api/map/search?keyword=...&region=...`);
+      console.log(`   - Map Keys: TENCENT_MAP_KEY, BAIDU_MAP_AK`);
     });
   } catch (error) {
     console.error('❌ Unable to start server:', error);

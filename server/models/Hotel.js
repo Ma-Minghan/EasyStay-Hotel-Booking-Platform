@@ -29,6 +29,22 @@ const Hotel = sequelize.define('Hotel', {
     type: DataTypes.STRING(100),
     allowNull: false,
   },
+  longitude: {
+    type: DataTypes.DECIMAL(10, 7),
+    allowNull: true,
+    validate: {
+      min: -180,
+      max: 180,
+    },
+  },
+  latitude: {
+    type: DataTypes.DECIMAL(10, 7),
+    allowNull: true,
+    validate: {
+      min: -90,
+      max: 90,
+    },
+  },
   rating: {
     type: DataTypes.FLOAT,
     defaultValue: 0,

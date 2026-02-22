@@ -28,6 +28,9 @@ export const API_ENDPOINTS = {
   statistics: {
     revenue: '/api/statistics/revenue',
   },
+  map: {
+    search: '/api/map/search',
+  },
 };
 
 // 状态常量
