@@ -9,16 +9,49 @@ import './index.scss'
 const CITY_STORAGE_KEY = 'selected_city'
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200'
+const STAR_PRESET_OPTIONS = [
+  { label: '不限', value: '' },
+  { label: '4钻+', value: '4' },
+  { label: '4.5分+', value: '4.5' },
+]
+const PRICE_PRESET_OPTIONS = [
+  { label: '不限', value: '' },
+  { label: '￥300以下', value: '0-300' },
+  { label: '￥300-600', value: '300-600' },
+  { label: '￥600以上', value: '600-99999' },
+]
+
+const decodePricePreset = (value: string) => {
+  if (!value) return { minPrice: '', maxPrice: '' }
+  const [min, max] = value.split('-')
+  return {
+    minPrice: min || '',
+    maxPrice: max || '',
+  }
+}
 
 const Home = () => {
   const { isLogin, userInfo } = useAuthStore()
   const [keyword, setKeyword] = useState('')
+  const [locationText, setLocationText] = useState('')
+  const [starPreset, setStarPreset] = useState('')
+  const [pricePreset, setPricePreset] = useState('')
   const [city, setCity] = useState('上海')
   const [homeAds, setHomeAds] = useState<Hotel[]>([])
 
   const handleSearch = () => {
+    const { minPrice, maxPrice } = decodePricePreset(pricePreset)
+    const query = [
+      `city=${encodeURIComponent(city)}`,
+      `keyword=${encodeURIComponent(keyword.trim())}`,
+      `location=${encodeURIComponent(locationText.trim())}`,
+      `minScore=${encodeURIComponent(starPreset)}`,
+      `minPrice=${encodeURIComponent(minPrice)}`,
+      `maxPrice=${encodeURIComponent(maxPrice)}`,
+    ].join('&')
+
     Taro.navigateTo({
-      url: `/pages/list/index?city=${city}&keyword=${keyword}`,
+      url: `/pages/list/index?${query}`,
     })
   }
 
@@ -100,14 +133,55 @@ const Home = () => {
       </View>
 
       <View className='search card'>
-        <View className='field'>
-          <Text className='label'>关键词</Text>
-          <Input
-            value={keyword}
-            placeholder='输入酒店/商圈/关键词'
-            onInput={e => setKeyword(e.detail.value)}
-          />
+        <View className='field-grid'>
+          <View className='field'>
+            <Text className='label'>关键词</Text>
+            <Input
+              value={keyword}
+              placeholder='酒店名/品牌'
+              onInput={e => setKeyword(e.detail.value)}
+            />
+          </View>
+          <View className='field'>
+            <Text className='label'>位置</Text>
+            <Input
+              value={locationText}
+              placeholder='商圈/地铁/地标'
+              onInput={e => setLocationText(e.detail.value)}
+            />
+          </View>
         </View>
+
+        <View className='option-row'>
+          <Text className='option-title'>星级</Text>
+          <View className='option-chips'>
+            {STAR_PRESET_OPTIONS.map(option => (
+              <Text
+                key={option.label}
+                className={`option-chip ${starPreset === option.value ? 'active' : ''}`}
+                onClick={() => setStarPreset(option.value)}
+              >
+                {option.label}
+              </Text>
+            ))}
+          </View>
+        </View>
+
+        <View className='option-row'>
+          <Text className='option-title'>价格</Text>
+          <View className='option-chips'>
+            {PRICE_PRESET_OPTIONS.map(option => (
+              <Text
+                key={option.label}
+                className={`option-chip ${pricePreset === option.value ? 'active' : ''}`}
+                onClick={() => setPricePreset(option.value)}
+              >
+                {option.label}
+              </Text>
+            ))}
+          </View>
+        </View>
+
         <View className='btn-primary' onClick={handleSearch}>搜索酒店</View>
       </View>
 

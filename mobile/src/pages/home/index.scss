@@ -120,11 +120,49 @@
   margin-bottom: 16px;
 }
 
+.search .field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 .search .label {
   display: block;
   font-size: 22px;
   color: #8a8f98;
   margin-bottom: 8px;
+}
+
+.search .option-row {
+  margin-top: 8px;
+}
+
+.search .option-title {
+  display: block;
+  font-size: 22px;
+  color: #8a8f98;
+  margin-bottom: 8px;
+}
+
+.search .option-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search .option-chip {
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #53606e;
+}
+
+.search .option-chip.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 600;
 }
 
 .search {

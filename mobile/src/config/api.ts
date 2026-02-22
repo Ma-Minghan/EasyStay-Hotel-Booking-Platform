@@ -46,6 +46,7 @@ export const API_PATHS = {
 
   // 地图
   MAP_REVERSE_GEOCODE: '/api/map/regeo',
+  MAP_SEARCH: '/api/map/search',
 
   // 节假日
   HOLIDAYS: '/api/holidays',
