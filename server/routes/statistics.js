@@ -1,7 +1,6 @@
 const express = require('express');
 const { Op } = require('sequelize');
-const sequelize = require('../config/database');
-const { Booking, Hotel, User } = require('../models');
+const { Booking, Hotel } = require('../models');
 const router = express.Router();
 
 /**
@@ -12,7 +11,6 @@ router.get('/revenue', async (req, res) => {
   try {
     const { role, userId } = req.query;
 
-    // 构建基础查询条件
     const where = { status: 'confirmed' }; // 只统计已确认的预订
     const hotelWhere = {};
 
@@ -20,17 +18,18 @@ router.get('/revenue', async (req, res) => {
       hotelWhere.merchantId = userId;
     }
 
-    // 获取相关的预订
+    // 只在有筛选条件时才带 where，避免空对象导致多余的 inner join 失败
+    const hotelInclude = {
+      model: Hotel,
+      as: 'hotel',
+      attributes: ['id', 'name', 'merchantId'],
+      ...(Object.keys(hotelWhere).length ? { where: hotelWhere } : {}),
+    };
+
+    // 获取相关的预订（已确认）
     const relevantBookings = await Booking.findAll({
       where,
-      include: [
-        {
-          model: Hotel,
-          as: 'hotel',
-          where: hotelWhere,
-          attributes: ['id', 'name', 'merchantId'],
-        },
-      ],
+      include: [hotelInclude],
     });
 
     // 获取相关的酒店
@@ -38,62 +37,46 @@ router.get('/revenue', async (req, res) => {
       where: hotelWhere,
     });
 
-    // 计算总收入
+    // 总收入
     const totalRevenue = relevantBookings.reduce((sum, booking) => {
-      return sum + parseFloat(booking.totalPrice);
+      return sum + parseFloat(booking.totalPrice || 0);
     }, 0);
 
-    // 获取所有预订数量
+    // 所有预订数量（不限状态）
     const allBookings = await Booking.findAll({
-      include: [
-        {
-          model: Hotel,
-          as: 'hotel',
-          where: hotelWhere,
-          attributes: ['id'],
-        },
-      ],
+      include: [hotelInclude],
     });
-
     const totalBookings = allBookings.length;
 
-    // 已确认的预订数
+    // 已确认数量
     const confirmedBookings = relevantBookings.length;
 
-    // 待确认的预订数
+    // 待确认数量
     const pendingBookings = await Booking.count({
       where: { status: 'pending' },
-      include: [
-        {
-          model: Hotel,
-          as: 'hotel',
-          where: hotelWhere,
-          attributes: ['id'],
-        },
-        {
-          required: true,
-        },
-      ],
+      include: [hotelInclude],
     });
 
-    // 平均每笔预订的收入
-    const avgRevenuePerBooking = confirmedBookings > 0
-      ? Math.round(totalRevenue / confirmedBookings * 100) / 100
-      : 0;
+    // 平均收入
+    const avgRevenuePerBooking =
+      confirmedBookings > 0
+        ? Math.round((totalRevenue / confirmedBookings) * 100) / 100
+        : 0;
 
     // 按酒店统计
-    const byHotel = relevantHotels.map(hotel => {
-      const hotelBookings = relevantBookings.filter(b => b.hotelId === hotel.id);
+    const byHotel = relevantHotels.map((hotel) => {
+      const hotelBookings = relevantBookings.filter(
+        (b) => b.hotel && b.hotel.id === hotel.id
+      );
       const revenue = hotelBookings.reduce((sum, b) => {
-        return sum + parseFloat(b.totalPrice);
+        return sum + parseFloat(b.totalPrice || 0);
       }, 0);
-      const bookingCount = hotelBookings.length;
 
       return {
         hotelId: hotel.id,
         hotelName: hotel.name,
         revenue: Math.round(revenue * 100) / 100,
-        bookingCount,
+        bookingCount: hotelBookings.length,
       };
     });
 
@@ -113,7 +96,7 @@ router.get('/revenue', async (req, res) => {
     console.error('Get statistics error:', error);
     res.status(500).json({
       code: 500,
-      message: error.message,
+      message: error.message || '服务器错误',
     });
   }
 });
