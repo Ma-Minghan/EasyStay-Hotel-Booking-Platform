@@ -13,10 +13,12 @@ const PAGE_SIZE = 8
 const CITY_STORAGE_KEY = 'selected_city'
 const QUICK_TAG_OPTIONS = ['高评分', '近地铁', '亲子友好', '城市景观', '免费停车', '豪华', '含早餐', '可取消']
 const STAR_OPTIONS = [
-  { label: '不限星级', value: '' },
-  { label: '3钻及以上', value: '3' },
-  { label: '4钻及以上', value: '4' },
-  { label: '4.5分及以上', value: '4.5' },
+  { label: '\u4e0d\u9650\u661f\u7ea7', value: '' },
+  { label: '1\u661f', value: '1' },
+  { label: '2\u661f', value: '2' },
+  { label: '3\u661f', value: '3' },
+  { label: '4\u661f', value: '4' },
+  { label: '5\u661f', value: '5' },
 ]
 const EARTH_RADIUS_KM = 6371
 
@@ -298,11 +300,14 @@ const HotelList = () => {
     return safeList.filter(item => {
       const minPrice = parseFilterNumber(appliedFilters.minPrice)
       const maxPrice = parseFilterNumber(appliedFilters.maxPrice)
-      const minScore = parseFilterNumber(appliedFilters.minScore)
+      const selectedStarLevel = parseFilterNumber(appliedFilters.minScore)
 
       if (minPrice !== null && item.price < minPrice) return false
       if (maxPrice !== null && item.price > maxPrice) return false
-      if (minScore !== null && item.score < minScore) return false
+      if (selectedStarLevel !== null) {
+        const itemStarLevel = Number(item.starLevel)
+        if (!Number.isFinite(itemStarLevel) || itemStarLevel !== selectedStarLevel) return false
+      }
 
       if (appliedFilters.roomType) {
         const roomMatched =
@@ -371,7 +376,7 @@ const HotelList = () => {
     const activeQuickTags = ensureStringArray(appliedFilters.quickTags)
 
     if (appliedFilters.roomType) blocks.push(appliedFilters.roomType)
-    if (appliedFilters.minScore) blocks.push(`${appliedFilters.minScore}+`)
+    if (appliedFilters.minScore) blocks.push(`${appliedFilters.minScore}\u661f`)
     if (appliedFilters.minPrice || appliedFilters.maxPrice) {
       blocks.push(`￥${appliedFilters.minPrice || '0'}-￥${appliedFilters.maxPrice || '不限'}`)
     }
@@ -670,8 +675,10 @@ const HotelList = () => {
             <View className='info'>
               <Text className='name'>{item.name}</Text>
               <Text className='score'>
-                {item.starLevel ? `${item.starLevel}\u661f \u00b7 ` : ''}
-                {item.score.toFixed(1)} {'\u5206'}
+                {item.starLevel ? `${item.starLevel}\u661f` : '\u672a\u8bbe\u7f6e\u661f\u7ea7'}
+                {' \u00b7 '}
+                {'\u8bc4\u5206 '}
+                {item.score.toFixed(1)}
               </Text>
               <Text className='address'>
                 {item.address || `${item.city}\u5e02\u4e2d\u5fc3`}
