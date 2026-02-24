@@ -46,6 +46,8 @@ export interface Hotel {
   id: number
   /** 酒店名称 */
   name: string
+  /** 酒店星级（1-5星） */
+  starLevel?: number
   /** 所在城市 */
   city: string
   /** 详细地址 */
@@ -54,7 +56,7 @@ export interface Hotel {
   longitude: number
   /** 纬度（GCJ-02） */
   latitude: number
-  /** 评分（0-5） */
+  /** 星级（0-5） */
   score: number
   /** 标签数组 */
   tags: string[]
