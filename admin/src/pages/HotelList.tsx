@@ -198,6 +198,9 @@ function HotelList() {
               >
                 拒绝广告
               </Button>
+              <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
+                {'\u8be6\u60c5'}
+              </Button>
             </Space>
           );
         }
@@ -213,14 +216,24 @@ function HotelList() {
               </Button>
             </Popconfirm>
             {record.adStatus === 'pending' || record.isHomeAd ? (
-              <Button size='small' onClick={() => handleAdAction(record.id, { enabled: false }, '已取消广告申请')}>
-                取消广告
+              <Button
+                size='small'
+                onClick={() => handleAdAction(record.id, { enabled: false }, '\u5df2\u53d6\u6d88\u5e7f\u544a\u7533\u8bf7')}
+              >
+                {'\u53d6\u6d88\u5e7f\u544a'}
               </Button>
             ) : (
-              <Button type='dashed' size='small' onClick={() => handleAdAction(record.id, { enabled: true }, '广告申请已提交')}>
-                申请广告
+              <Button
+                type='dashed'
+                size='small'
+                onClick={() => handleAdAction(record.id, { enabled: true }, '\u5e7f\u544a\u7533\u8bf7\u5df2\u63d0\u4ea4')}
+              >
+                {'\u7533\u8bf7\u5e7f\u544a'}
               </Button>
             )}
+            <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
+              {'\u8be6\u60c5'}
+            </Button>
           </Space>
         );
       },

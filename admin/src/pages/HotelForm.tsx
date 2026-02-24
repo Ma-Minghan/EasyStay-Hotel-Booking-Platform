@@ -1,9 +1,11 @@
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import dayjs, { type Dayjs } from 'dayjs';
 import {
   Alert,
   Button,
   Card,
+  DatePicker,
   Form,
   Input,
   Layout,
@@ -46,6 +48,12 @@ const getMapSearchErrorMessage = (responseData: any): string => {
   return `${defaultMessage}：${detailParts.join('；')}`;
 };
 
+const normalizeOpeningDate = (value: unknown): string | undefined => {
+  if (!value) return undefined;
+  if (dayjs.isDayjs(value)) return (value as Dayjs).format('YYYY-MM-DD');
+  return undefined;
+};
+
 function HotelForm() {
   const [form] = Form.useForm();
   const navigate = useNavigate();
@@ -84,6 +92,7 @@ function HotelForm() {
 
       form.setFieldsValue({
         ...hotel,
+        openingDate: hotel.openingDate ? dayjs(hotel.openingDate) : undefined,
         imagesText: Array.isArray(hotel.images) ? hotel.images.join('\n') : '',
       });
       const lng = Number(hotel.longitude);
@@ -181,6 +190,12 @@ function HotelForm() {
       ...values,
       images,
     };
+    const openingDate = normalizeOpeningDate(values.openingDate);
+    if (openingDate) {
+      payload.openingDate = openingDate;
+    } else {
+      delete payload.openingDate;
+    }
     delete payload.imagesText;
     if (hasCoordinate) {
       payload.longitude = longitude;
@@ -296,6 +311,15 @@ function HotelForm() {
               ]}
             >
               <Input placeholder='例如：上海' />
+            </Form.Item>
+
+            <Form.Item label={'\u9152\u5e97\u5f00\u4e1a\u65f6\u95f4'} name='openingDate'>
+              <DatePicker
+                style={{ width: '100%' }}
+                placeholder={'\u8bf7\u9009\u62e9\u5f00\u4e1a\u65e5\u671f'}
+                format='YYYY-MM-DD'
+                allowClear
+              />
             </Form.Item>
 
             <Form.Item

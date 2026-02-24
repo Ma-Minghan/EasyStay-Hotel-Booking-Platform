@@ -79,6 +79,32 @@ const parseStarLevel = value => {
   return star;
 };
 
+const parseOpeningDate = value => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+
+  const parsed = new Date(`${trimmed}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  if (parsed.toISOString().slice(0, 10) !== trimmed) {
+    return null;
+  }
+
+  return trimmed;
+};
+
 /**
  * GET /api/hotels
  * 获取酒店列表（支持角色、状态、城市、关键词筛选）
@@ -299,6 +325,7 @@ router.post('/', authenticateToken, async (req, res) => {
       description,
       location,
       city,
+      openingDate,
       longitude,
       latitude,
       rating,
@@ -365,11 +392,20 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    const parsedOpeningDate = parseOpeningDate(openingDate);
+    if (parsedOpeningDate === null) {
+      return res.status(400).json({
+        code: 400,
+        message: '酒店开业时间格式无效，必须为 YYYY-MM-DD',
+      });
+    }
+
     const hotel = await Hotel.create({
       name,
       description,
       location,
       city,
+      openingDate: parsedOpeningDate,
       longitude: parsedLongitude,
       latitude: parsedLatitude,
       rating: rating || 0,
@@ -442,6 +478,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
       description,
       location,
       city,
+      openingDate,
       longitude,
       latitude,
       rating,
@@ -499,11 +536,20 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
+    const parsedOpeningDate = parseOpeningDate(openingDate);
+    if (parsedOpeningDate === null) {
+      return res.status(400).json({
+        code: 400,
+        message: '酒店开业时间格式无效，必须为 YYYY-MM-DD',
+      });
+    }
+
     if (req.user.role === 'merchant') {
       if (name !== undefined) hotel.name = name;
       if (description !== undefined) hotel.description = description;
       if (location !== undefined) hotel.location = location;
       if (city !== undefined) hotel.city = city;
+      if (parsedOpeningDate !== undefined) hotel.openingDate = parsedOpeningDate;
       if (parsedLongitude !== undefined) hotel.longitude = parsedLongitude;
       if (parsedLatitude !== undefined) hotel.latitude = parsedLatitude;
       if (rating !== undefined) hotel.rating = rating;

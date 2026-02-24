@@ -6,6 +6,7 @@ import Register from './Register';
 import Dashboard from './pages/Dashboard';
 import HotelList from './pages/HotelList';
 import HotelForm from './pages/HotelForm';
+import HotelDetail from './pages/HotelDetail';
 import BookingList from './pages/BookingList';
 import Statistics from './pages/Statistics';
 import HolidayList from './pages/HolidayList';
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
         <Route path="/hotels" element={<PrivateRoute><HotelList /></PrivateRoute>} />
         <Route path="/hotels/new" element={<PrivateRoute><HotelForm /></PrivateRoute>} />
         <Route path="/hotels/:id" element={<PrivateRoute><HotelForm /></PrivateRoute>} />
+        <Route path="/hotels/:id/detail" element={<PrivateRoute><HotelDetail /></PrivateRoute>} />
         <Route path="/bookings" element={<PrivateRoute><BookingList /></PrivateRoute>} />
         <Route path="/statistics" element={<PrivateRoute><Statistics /></PrivateRoute>} />
         <Route path="/holidays" element={<PrivateRoute><HolidayList /></PrivateRoute>} />
