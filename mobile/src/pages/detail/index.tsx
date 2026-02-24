@@ -198,11 +198,7 @@ const HotelDetail = () => {
           </LoginGuard>
         </View>
         <Text className='muted'>
-<<<<<<< HEAD
-          {detail.starLevel ? `${detail.starLevel}钻 · ` : ''}评分 {detail.score.toFixed(1)} · {detail.city}
-=======
-          星级 {detail.score.toFixed(1)} · {detail.city}
->>>>>>> b874dd99de65db2c492d890d8c918d6cab643ca8
+          评分 {detail.score.toFixed(1)} · {detail.city}
         </Text>
         <View className='muted opening-date'>
           {'\u5f00\u4e1a\u65f6\u95f4\uff1a'}
@@ -275,7 +271,7 @@ const HotelDetail = () => {
         ))}
       </View>
 
-      {!isLogin && <View className='login-tip'>登录后可查看收藏记录</View>}
+      {!isLogin && <View className='login-tip'>登录后可查看会员价与收藏记录</View>}
 
       <CustomCalendar
         visible={calendarVisible}
