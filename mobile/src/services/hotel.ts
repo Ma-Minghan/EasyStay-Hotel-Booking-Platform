@@ -12,6 +12,7 @@ export interface Hotel {
   id: number
   name: string
   city: string
+  openingDate?: string
   starLevel?: number
   longitude?: number
   latitude?: number
@@ -90,6 +91,7 @@ const transformHotelData = (hotel: any): Hotel => {
   return {
     id: hotel.id,
     name: hotel.name,
+    openingDate: typeof hotel.openingDate === 'string' ? hotel.openingDate : undefined,
     longitude: toNumberOr(hotel.longitude ?? hotel.lng, 121.4737),
     latitude: toNumberOr(hotel.latitude ?? hotel.lat, 31.2304),
     city: hotel.city || '未知',

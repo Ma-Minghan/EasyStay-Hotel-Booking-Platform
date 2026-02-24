@@ -173,6 +173,10 @@ const HotelDetail = () => {
         <Text className='muted'>
           星级 {detail.score.toFixed(1)} · {detail.city}
         </Text>
+        <View className='muted opening-date'>
+          {'\u5f00\u4e1a\u65f6\u95f4\uff1a'}
+          {detail.openingDate || '\u6682\u65e0'}
+        </View>
       </View>
 
       <View className='card map-card'>

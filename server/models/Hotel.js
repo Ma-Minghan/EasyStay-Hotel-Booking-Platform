@@ -29,6 +29,13 @@ const Hotel = sequelize.define('Hotel', {
     type: DataTypes.STRING(100),
     allowNull: false,
   },
+  openingDate: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    validate: {
+      isDate: true,
+    },
+  },
   longitude: {
     type: DataTypes.DECIMAL(10, 7),
     allowNull: true,
