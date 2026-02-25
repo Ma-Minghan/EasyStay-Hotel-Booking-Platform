@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { Layout, Button, Table, Space, message, Popconfirm, Tag, Menu, Spin, Select } from 'antd';
+import { Layout, Button, Table, Space, message, Popconfirm, Tag, Menu, Spin, Select, Modal, Input, Form } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShopOutlined } from '@ant-design/icons';
 import { useApi } from '../hooks/useApi';
 import { API_ENDPOINTS } from '../config';
 import './HotelList.css';
 
+
 const { Header, Sider, Content } = Layout;
+
 
 interface Hotel {
   id: string;
@@ -20,15 +22,26 @@ interface Hotel {
   adStatus?: 'none' | 'pending' | 'approved' | 'rejected';
   isHomeAd?: boolean;
   merchantId: string;
+  rejectReason?: string;
+  rejectTime?: string;
 }
+
 
 function HotelList() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { get, put, delete: removeHotel } = useApi({ showMessage: false });
+  const [form] = Form.useForm();
+
+  // ============ 新增：拒绝原因弹窗相关 state ============
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectingHotelId, setRejectingHotelId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
 
   const user = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+
 
   const menuItems = user.role === 'admin'
     ? [
@@ -42,11 +55,13 @@ function HotelList() {
         { key: 'statistics', icon: <ShopOutlined />, label: '收入统计', onClick: () => navigate('/statistics') },
       ];
 
+
   const fetchHotels = useCallback(async () => {
     try {
       setLoading(true);
       const params: any = { role: user.role, userId: user.id };
       if (user.role === 'merchant') params.merchantId = user.id;
+
 
       const response = await get('http://localhost:3000/api/hotels', { params });
       if (response.data.code === 200) {
@@ -62,9 +77,11 @@ function HotelList() {
     }
   }, [get, user.role, user.id]);
 
+
   useEffect(() => {
     fetchHotels();
   }, [fetchHotels]);
+
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -78,6 +95,7 @@ function HotelList() {
     }
   }, [removeHotel, user.role, user.id, fetchHotels]);
 
+
   const handleApproveHotel = useCallback(async (id: string, status: string) => {
     try {
       await put(`http://localhost:3000/api/hotels/${id}`, { status }, {
@@ -89,6 +107,44 @@ function HotelList() {
       message.error(error.response?.data?.message || '酒店审核失败');
     }
   }, [put, user.role, user.id, fetchHotels]);
+
+
+  // ============ 新增：打开拒绝弹窗 ============
+  const openRejectModal = (hotelId: string) => {
+    setRejectingHotelId(hotelId);
+    setRejectReason('');
+    setRejectModalOpen(true);
+  };
+
+  // ============ 新增：提交拒绝（带原因） ============
+  const handleRejectSubmit = useCallback(async () => {
+    if (!rejectReason.trim()) {
+      message.error('请填写拒绝原因');
+      return;
+    }
+
+    if (!rejectingHotelId) return;
+
+    try {
+      await put(`http://localhost:3000/api/hotels/${rejectingHotelId}`, 
+        { 
+          status: 'rejected',
+          reason: rejectReason.trim()
+        }, 
+        {
+          params: { role: user.role, userId: user.id },
+        }
+      );
+      message.success('酒店已拒绝');
+      setRejectModalOpen(false);
+      setRejectReason('');
+      setRejectingHotelId(null);
+      fetchHotels();
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '拒绝酒店失败');
+    }
+  }, [rejectingHotelId, rejectReason, put, user.role, user.id, fetchHotels]);
+
 
   const handleAdAction = useCallback(async (id: string, payload: any, successText: string) => {
     try {
@@ -102,24 +158,26 @@ function HotelList() {
     }
   }, [put, user.role, user.id, fetchHotels]);
 
+
   const handleUpdateStarLevel = useCallback(async (id: string, starLevel: number) => {
     try {
       await put(API_ENDPOINTS.hotels.updateStarLevel(id), { starLevel });
-      message.success('\u9152\u5e97\u661f\u7ea7\u66f4\u65b0\u6210\u529f');
+      message.success('酒店星级更新成功');
       fetchHotels();
     } catch (error: any) {
-      message.error(error.response?.data?.message || '\u9152\u5e97\u661f\u7ea7\u66f4\u65b0\u5931\u8d25');
+      message.error(error.response?.data?.message || '酒店星级更新失败');
     }
   }, [put, fetchHotels]);
+
 
   const columns = [
     { title: '酒店名称', dataIndex: 'name', key: 'name' },
     { title: '城市', dataIndex: 'city', key: 'city' },
     {
-      title: '\u661f\u7ea7',
+      title: '星级',
       dataIndex: 'starLevel',
       key: 'starLevel',
-      render: (starLevel?: number) => (Number.isInteger(starLevel) ? `${starLevel}\u661f` : '-'),
+      render: (starLevel?: number) => (Number.isInteger(starLevel) ? `${starLevel}星` : '-'),
     },
     {
       title: '价格/晚',
@@ -132,13 +190,26 @@ function HotelList() {
       title: '酒店状态',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => {
+      render: (status: string, record: Hotel) => {
         const map: Record<string, ReactNode> = {
           pending: <Tag color='orange'>待审核</Tag>,
           approved: <Tag color='green'>已批准</Tag>,
           rejected: <Tag color='red'>已拒绝</Tag>,
           draft: <Tag>草稿</Tag>,
         };
+        
+        // 如果是拒绝状态且有拒绝原因，显示提示
+        if (status === 'rejected' && record.rejectReason) {
+          return (
+            <div>
+              <Tag color='red'>已拒绝</Tag>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                原因：{record.rejectReason}
+              </div>
+            </div>
+          );
+        }
+        
         return map[status] || status;
       },
     },
@@ -163,7 +234,7 @@ function HotelList() {
       render: (_: any, record: Hotel) => {
         if (user.role === 'admin') {
           return (
-            <Space>
+            <Space wrap>
               <Button
                 type='primary'
                 size='small'
@@ -171,9 +242,16 @@ function HotelList() {
               >
                 {record.status === 'pending' ? '批准酒店' : '撤销批准'}
               </Button>
-              <Button danger size='small' onClick={() => handleApproveHotel(record.id, 'rejected')}>
+              
+              {/* ============ 修改：拒绝按钮改成打开弹窗 ============ */}
+              <Button 
+                danger 
+                size='small' 
+                onClick={() => openRejectModal(record.id)}
+              >
                 拒绝酒店
               </Button>
+              
               <Button
                 type='dashed'
                 size='small'
@@ -186,9 +264,9 @@ function HotelList() {
                 className='hotel-star-select'
                 size='small'
                 value={record.starLevel || undefined}
-                placeholder={'\u8bbe\u7f6e\u661f\u7ea7'}
+                placeholder='设置星级'
                 style={{ width: 96 }}
-                options={[1, 2, 3, 4, 5].map(level => ({ label: `${level}\u661f`, value: level }))}
+                options={[1, 2, 3, 4, 5].map(level => ({ label: `${level}星`, value: level }))}
                 onChange={(value: number) => handleUpdateStarLevel(record.id, value)}
               />
               <Button
@@ -200,14 +278,15 @@ function HotelList() {
                 拒绝广告
               </Button>
               <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
-                {'\u8be6\u60c5'}
+                详情
               </Button>
             </Space>
           );
         }
 
+
         return (
-          <Space>
+          <Space wrap>
             <Button type='primary' size='small' icon={<EditOutlined />} onClick={() => navigate(`/hotels/${record.id}`)}>
               编辑
             </Button>
@@ -219,27 +298,28 @@ function HotelList() {
             {record.adStatus === 'pending' || record.isHomeAd ? (
               <Button
                 size='small'
-                onClick={() => handleAdAction(record.id, { enabled: false }, '\u5df2\u53d6\u6d88\u5e7f\u544a\u7533\u8bf7')}
+                onClick={() => handleAdAction(record.id, { enabled: false }, '已取消广告申请')}
               >
-                {'\u53d6\u6d88\u5e7f\u544a'}
+                取消广告
               </Button>
             ) : (
               <Button
                 type='dashed'
                 size='small'
-                onClick={() => handleAdAction(record.id, { enabled: true }, '\u5e7f\u544a\u7533\u8bf7\u5df2\u63d0\u4ea4')}
+                onClick={() => handleAdAction(record.id, { enabled: true }, '广告申请已提交')}
               >
-                {'\u7533\u8bf7\u5e7f\u544a'}
+                申请广告
               </Button>
             )}
             <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
-              {'\u8be6\u60c5'}
+              详情
             </Button>
           </Space>
         );
       },
     },
   ];
+
 
   return (
     <Layout className='hotel-list-page' style={{ minHeight: '100vh' }}>
@@ -249,6 +329,7 @@ function HotelList() {
         </div>
         <Menu theme='dark' mode='inline' items={menuItems} />
       </Sider>
+
 
       <Layout>
         <Header
@@ -267,6 +348,7 @@ function HotelList() {
           </Button>
         </Header>
 
+
         <Content style={{ padding: '20px', background: '#f0f2f5' }}>
           {user.role === 'merchant' && (
             <div style={{ marginBottom: '20px' }}>
@@ -275,6 +357,7 @@ function HotelList() {
               </Button>
             </div>
           )}
+
 
           <div style={{ background: 'white', padding: '20px', borderRadius: '4px' }}>
             <Spin spinning={loading}>
@@ -290,8 +373,37 @@ function HotelList() {
           </div>
         </Content>
       </Layout>
+
+      {/* ============ 新增：拒绝原因弹窗 ============ */}
+      <Modal
+        title='拒绝酒店'
+        open={rejectModalOpen}
+        onCancel={() => {
+          setRejectModalOpen(false);
+          setRejectReason('');
+          setRejectingHotelId(null);
+        }}
+        onOk={handleRejectSubmit}
+        okText='提交拒绝'
+        cancelText='取消'
+        okButtonProps={{ danger: true }}
+      >
+        <Form layout='vertical'>
+          <Form.Item label='拒绝原因' required>
+            <Input.TextArea
+              rows={4}
+              placeholder='请填写拒绝原因，商家将看到此原因并可据此修改酒店信息后重新提交（例如：营业执照信息不清晰、联系方式无效等）'
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Layout>
   );
 }
+
 
 export default HotelList;

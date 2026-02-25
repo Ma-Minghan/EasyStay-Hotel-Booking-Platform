@@ -106,6 +106,19 @@ const Hotel = sequelize.define('Hotel', {
     type: DataTypes.ENUM('draft', 'pending', 'approved', 'rejected'),
     defaultValue: 'pending',
   },
+  rejectReason: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    defaultValue: null,
+    comment: '拒绝原因'
+  },
+  rejectTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    defaultValue: null,
+    comment: '拒绝时间'
+  },
+
   // 首页广告位是否正在投放
   isHomeAd: {
     type: DataTypes.BOOLEAN,

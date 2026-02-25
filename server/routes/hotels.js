@@ -569,8 +569,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
           message: '无效的酒店状态',
         });
       }
-      hotel.status = status;
+        // 修改这里：增加拒绝原因的处理
+  if (status === 'rejected') {
+    const reason = req.body.reason; // 这里的 reason 是前端传过来的
+    if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({
+        code: 400,
+        message: '拒绝时必须填写拒绝原因',
+      });
     }
+    hotel.rejectReason = reason.trim();
+    hotel.rejectTime = new Date();
+  } else {
+    // 如果是通过或恢复，清空拒绝信息
+    hotel.rejectReason = null;
+    hotel.rejectTime = null;
+  }
+  
+  hotel.status = status;
+}
 
     await hotel.save();
 
