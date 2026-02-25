@@ -12,6 +12,7 @@ export interface Hotel {
   id: number
   name: string
   city: string
+  openingDate?: string
   starLevel?: number
   longitude?: number
   latitude?: number
@@ -66,6 +67,11 @@ const toNumberOr = (value: any, fallback: number) => {
   return Number.isFinite(num) ? num : fallback
 }
 
+const toOptionalNumber = (value: any): number | undefined => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : undefined
+}
+
 const transformHotelData = (hotel: any): Hotel => {
   const images = parseJsonArray(hotel.images)
   const thumb = hotel.imageUrl || images[0] || 'https://picsum.photos/id/401/600/400'
@@ -86,27 +92,30 @@ const transformHotelData = (hotel: any): Hotel => {
 
   const facilities = parseJsonArray(hotel.facilities)
   const tags = facilities.length > 0 ? facilities.slice(0, 2) : ['舒适', '便利']
+  const ratingValue = toOptionalNumber(hotel.rating ?? hotel.score)
+  const starLevelValue = toOptionalNumber(hotel.starLevel)
 
   return {
     id: hotel.id,
     name: hotel.name,
+    openingDate: typeof hotel.openingDate === 'string' ? hotel.openingDate : undefined,
     longitude: toNumberOr(hotel.longitude ?? hotel.lng, 121.4737),
     latitude: toNumberOr(hotel.latitude ?? hotel.lat, 31.2304),
     city: hotel.city || '未知',
-    starLevel: hotel.starLevel ? Number(hotel.starLevel) : undefined,
+    starLevel: starLevelValue,
     address: hotel.address || hotel.location,
     description: hotel.description,
     price: Number(hotel.pricePerNight || hotel.price || rooms[0]?.price || 200),
     pricePerNight: hotel.pricePerNight ? Number(hotel.pricePerNight) : undefined,
-    score: Number(hotel.rating || hotel.score || 4.5),
-    rating: hotel.rating,
+    score: ratingValue ?? 0,
+    rating: ratingValue,
     imageUrl: hotel.imageUrl,
     images,
     thumb,
     banners,
     rooms,
     roomTypes,
-    isMemberDeal: Number(hotel.rating || hotel.score || 0) >= 4.5,
+    isMemberDeal: (ratingValue ?? 0) >= 4.5,
     tags,
     facilities,
     status: hotel.status,

@@ -10,9 +10,12 @@ const CITY_STORAGE_KEY = 'selected_city'
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=200'
 const STAR_PRESET_OPTIONS = [
-  { label: '不限', value: '' },
-  { label: '4星+', value: '4' },
-  { label: '4.5星+', value: '4.5' },
+  { label: '\u4e0d\u9650', value: '' },
+  { label: '1\u661f', value: '1' },
+  { label: '2\u661f', value: '2' },
+  { label: '3\u661f', value: '3' },
+  { label: '4\u661f', value: '4' },
+  { label: '5\u661f', value: '5' },
 ]
 const PRICE_PRESET_OPTIONS = [
   { label: '不限', value: '' },

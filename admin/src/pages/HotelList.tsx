@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ShopOutlined } from '@ant-design/icons';
 import { useApi } from '../hooks/useApi';
 import { API_ENDPOINTS } from '../config';
+import './HotelList.css';
 
 const { Header, Sider, Content } = Layout;
 
@@ -104,10 +105,10 @@ function HotelList() {
   const handleUpdateStarLevel = useCallback(async (id: string, starLevel: number) => {
     try {
       await put(API_ENDPOINTS.hotels.updateStarLevel(id), { starLevel });
-      message.success('酒店钻级更新成功');
+      message.success('\u9152\u5e97\u661f\u7ea7\u66f4\u65b0\u6210\u529f');
       fetchHotels();
     } catch (error: any) {
-      message.error(error.response?.data?.message || '酒店钻级更新失败');
+      message.error(error.response?.data?.message || '\u9152\u5e97\u661f\u7ea7\u66f4\u65b0\u5931\u8d25');
     }
   }, [put, fetchHotels]);
 
@@ -115,10 +116,10 @@ function HotelList() {
     { title: '酒店名称', dataIndex: 'name', key: 'name' },
     { title: '城市', dataIndex: 'city', key: 'city' },
     {
-      title: '钻级',
+      title: '\u661f\u7ea7',
       dataIndex: 'starLevel',
       key: 'starLevel',
-      render: (starLevel?: number) => (Number.isInteger(starLevel) ? `${starLevel}钻` : '-'),
+      render: (starLevel?: number) => (Number.isInteger(starLevel) ? `${starLevel}\u661f` : '-'),
     },
     {
       title: '价格/晚',
@@ -182,11 +183,12 @@ function HotelList() {
                 通过广告
               </Button>
               <Select
+                className='hotel-star-select'
                 size='small'
                 value={record.starLevel || undefined}
-                placeholder='设置钻级'
-                style={{ width: 110 }}
-                options={[1, 2, 3, 4, 5].map(level => ({ label: `${level}钻`, value: level }))}
+                placeholder={'\u8bbe\u7f6e\u661f\u7ea7'}
+                style={{ width: 96 }}
+                options={[1, 2, 3, 4, 5].map(level => ({ label: `${level}\u661f`, value: level }))}
                 onChange={(value: number) => handleUpdateStarLevel(record.id, value)}
               />
               <Button
@@ -196,6 +198,9 @@ function HotelList() {
                 onClick={() => handleAdAction(record.id, { reviewStatus: 'rejected' }, '广告已拒绝')}
               >
                 拒绝广告
+              </Button>
+              <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
+                {'\u8be6\u60c5'}
               </Button>
             </Space>
           );
@@ -212,14 +217,24 @@ function HotelList() {
               </Button>
             </Popconfirm>
             {record.adStatus === 'pending' || record.isHomeAd ? (
-              <Button size='small' onClick={() => handleAdAction(record.id, { enabled: false }, '已取消广告申请')}>
-                取消广告
+              <Button
+                size='small'
+                onClick={() => handleAdAction(record.id, { enabled: false }, '\u5df2\u53d6\u6d88\u5e7f\u544a\u7533\u8bf7')}
+              >
+                {'\u53d6\u6d88\u5e7f\u544a'}
               </Button>
             ) : (
-              <Button type='dashed' size='small' onClick={() => handleAdAction(record.id, { enabled: true }, '广告申请已提交')}>
-                申请广告
+              <Button
+                type='dashed'
+                size='small'
+                onClick={() => handleAdAction(record.id, { enabled: true }, '\u5e7f\u544a\u7533\u8bf7\u5df2\u63d0\u4ea4')}
+              >
+                {'\u7533\u8bf7\u5e7f\u544a'}
               </Button>
             )}
+            <Button size='small' onClick={() => navigate(`/hotels/${record.id}/detail`)}>
+              {'\u8be6\u60c5'}
+            </Button>
           </Space>
         );
       },
@@ -227,7 +242,7 @@ function HotelList() {
   ];
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className='hotel-list-page' style={{ minHeight: '100vh' }}>
       <Sider theme='dark' width={200}>
         <div style={{ color: 'white', padding: '20px', textAlign: 'center', fontSize: '16px', fontWeight: 'bold' }}>
           易宿酒店后台
@@ -263,7 +278,14 @@ function HotelList() {
 
           <div style={{ background: 'white', padding: '20px', borderRadius: '4px' }}>
             <Spin spinning={loading}>
-              <Table columns={columns} dataSource={hotels} loading={loading} rowKey='id' />
+              <Table
+                columns={columns}
+                dataSource={hotels}
+                loading={loading}
+                rowKey='id'
+                size='small'
+                scroll={{ x: 1200 }}
+              />
             </Spin>
           </div>
         </Content>
